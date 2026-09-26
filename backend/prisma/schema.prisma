@@ -8,12 +8,29 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  password      String
-  referral_code String?  @unique
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  password            String
+  referral_code       String?  @unique
+  premium_until       DateTime?
+  registration_ip     String?
+  device_fingerprint  String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relacionamentos
+  referralsMade       ReferralEvent[] @relation("Referrer")
+  referralReceived    ReferralEvent?  @relation("ReferredUser")
+}
+
+model ReferralEvent {
+  id              String   @id @default(uuid())
+  referrer_id     String
+  referred_id     String   @unique // Um usuário só pode ser indicado uma vez
+  createdAt       DateTime @default(now())
+
+  referrer        User     @relation("Referrer", fields: [referrer_id], references: [id])
+  referredUser    User     @relation("ReferredUser", fields: [referred_id], references: [id])
 }
 
 model Room {
