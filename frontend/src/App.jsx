@@ -1,40 +1,143 @@
-import { useEffect, useState } from 'react'
-import { socket } from './services/socket'
-import { Room } from './components/Room'
-import './index.css'
+import React, { useEffect, useState } from 'react';
+import { socket, updateSocketAuth } from './services/socket';
+import { Sidebar } from './components/Sidebar';
+import { AuthScreen } from './components/AuthScreen';
+import { DashboardView } from './components/DashboardView';
+import { MinhasSalasView } from './components/MinhasSalasView';
+import { CriarSalaView } from './components/CriarSalaView';
+import { IndicacoesView } from './components/IndicacoesView';
+import { PerfilPlanoView } from './components/PerfilPlanoView';
+import { Room } from './components/Room';
+
+const DEFAULT_ROOMS = [
+  {
+    id: 'noite-de-ficcao-cientifica',
+    title: 'Noite de ficção científica',
+    videoTitle: 'Horizonte Neon',
+    type: 'YOUTUBE',
+    date: 'Hoje, 21:00',
+    participants: 5,
+    image: '/horizonte_neon.jpg',
+    isPrimary: true,
+    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+  },
+  {
+    id: 'maratona-de-domingo',
+    title: 'Maratona de domingo',
+    videoTitle: 'Big Buck Bunny (MP4)',
+    type: 'VÍDEO EXTERNO',
+    date: '18 mai 2025',
+    participants: 4,
+    image: '/maratona.jpg',
+    isPrimary: false,
+    url: 'https://www.w3schools.com/html/mov_bbb.mp4'
+  },
+  {
+    id: 'sessao-de-estudos',
+    title: 'Sessão de estudos',
+    videoTitle: 'Lofi Hip Hop Radio',
+    type: 'YOUTUBE',
+    date: '12 mai 2025',
+    participants: 7,
+    image: '/estudos.jpg',
+    isTemporary: true,
+    isPrimary: false,
+    url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk'
+  },
+  {
+    id: 'clube-do-suspense',
+    title: 'Clube do suspense',
+    videoTitle: 'Tears of Steel',
+    type: 'STREAMING EXTERNO',
+    date: '03 mai 2025',
+    participants: 3,
+    image: '/horizonte_neon.jpg',
+    isPrimary: false,
+    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4'
+  }
+];
 
 function App() {
   const [isConnected, setIsConnected] = useState(socket.connected);
-  const [activeRoomId, setActiveRoomId] = useState(null);
-  
-  // States para o formulário da Dashboard
-  const [joinRoomIdInput, setJoinRoomIdInput] = useState('');
-  const [videoUrlInput, setVideoUrlInput] = useState('');
-  const [dashboardError, setDashboardError] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('syncplay_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    // Usuário padrão do protótipo Figma
+    return {
+      id: 'b1c8508b-f98c-4b9d-89f4-3fc09973e176',
+      name: 'Luna Martins',
+      initials: 'LM',
+      email: 'test@syncplay.com',
+      plan: 'Plano Vibe',
+      daysLeft: 23,
+      referral_code: 'LUNA30',
+      sessionsCount: 12,
+      referralsCount: 3
+    };
+  });
 
+  const [currentTab, setCurrentTab] = useState('inicio');
+  const [activeRoom, setActiveRoom] = useState(null);
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+
+  // Lista de salas persistida em localStorage
+  const [rooms, setRooms] = useState(() => {
+    const saved = localStorage.getItem('syncplay_rooms');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return DEFAULT_ROOMS;
+  });
+
+  // Socket connection listeners
   useEffect(() => {
     function onConnect() {
       setIsConnected(true);
-      setDashboardError('');
     }
 
     function onDisconnect() {
       setIsConnected(false);
     }
 
-    // Listener para o retorno da criação da sala
     function onRoomCreated(data) {
-      setIsCreating(false);
+      setIsCreatingRoom(false);
       if (data.hostToken) {
         sessionStorage.setItem(`hostToken_${data.roomId}`, data.hostToken);
       }
-      setActiveRoomId(data.roomId);
+
+      const newRoom = {
+        id: data.roomId,
+        title: data.roomName || 'Nova Sessão SyncPlay',
+        videoTitle: data.roomName || 'Vídeo Sincronizado',
+        type: data.videoUrl?.includes('youtube') || data.videoUrl?.includes('youtu.be') ? 'YOUTUBE' : 'VÍDEO EXTERNO',
+        date: 'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        participants: 1,
+        image: data.videoUrl?.includes('youtube') ? '/maratona.jpg' : '/horizonte_neon.jpg',
+        isPrimary: true,
+        url: data.videoUrl
+      };
+
+      setRooms((prev) => {
+        const updated = [newRoom, ...prev.filter((r) => r.id !== data.roomId)];
+        localStorage.setItem('syncplay_rooms', JSON.stringify(updated));
+        return updated;
+      });
+
+      setActiveRoom(newRoom);
     }
 
     function onCreationRejected(data) {
-      setIsCreating(false);
-      setDashboardError(data.message || 'Erro ao criar sala.');
+      setIsCreatingRoom(false);
+      alert(data.message || 'Erro ao criar sala.');
     }
 
     socket.on('connect', onConnect);
@@ -42,145 +145,209 @@ function App() {
     socket.on('room_created', onRoomCreated);
     socket.on('creation_rejected', onCreationRejected);
 
+    // Checa parâmetro de query na URL (?room=...)
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+      const existing = rooms.find((r) => r.id === roomParam);
+      if (existing) {
+        setActiveRoom(existing);
+      } else {
+        setActiveRoom({
+          id: roomParam,
+          title: 'Sessão Compartilhada',
+          videoTitle: 'Vídeo ao Vivo',
+          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        });
+      }
+    }
+
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('room_created', onRoomCreated);
       socket.off('creation_rejected', onCreationRejected);
     };
-  }, []);
+  }, [rooms]);
 
-  const handleCreateRoom = (e) => {
-    e.preventDefault();
-    if (!isConnected) {
-      setDashboardError('Não conectado ao servidor Socket.io');
+  const handleLoginSuccess = (user, token) => {
+    setCurrentUser(user);
+    localStorage.setItem('syncplay_user', JSON.stringify(user));
+    if (token) {
+      updateSocketAuth(token);
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('syncplay_user');
+    updateSocketAuth(null);
+    setActiveRoom(null);
+  };
+
+  const handleCreateRoom = ({ title, video_url }) => {
+    setIsCreatingRoom(true);
+    const cleanUrl = video_url ? video_url.trim() : 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+    const cleanTitle = title ? title.trim() : 'Nova Sessão SyncPlay';
+
+    if (!socket.connected) {
+      // Fallback offline caso o servidor esteja desconectado
+      setTimeout(() => {
+        setIsCreatingRoom(false);
+        const demoRoom = {
+          id: `room-${Date.now()}`,
+          title: cleanTitle,
+          videoTitle: cleanTitle,
+          type: cleanUrl.includes('youtube') ? 'YOUTUBE' : 'VÍDEO EXTERNO',
+          date: 'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          participants: 1,
+          image: cleanUrl.includes('youtube') ? '/maratona.jpg' : '/horizonte_neon.jpg',
+          isPrimary: true,
+          url: cleanUrl
+        };
+        setRooms((prev) => {
+          const updated = [demoRoom, ...prev];
+          localStorage.setItem('syncplay_rooms', JSON.stringify(updated));
+          return updated;
+        });
+        setActiveRoom(demoRoom);
+      }, 500);
       return;
     }
-    setDashboardError('');
-    setIsCreating(true);
-    socket.emit('create_room', { video_url: videoUrlInput });
+
+    socket.emit('create_room', { video_url: cleanUrl, roomName: cleanTitle });
   };
 
-  const handleJoinRoom = (e) => {
-    e.preventDefault();
-    if (!joinRoomIdInput.trim()) {
-      setDashboardError('Digite o ID ou URL da sala.');
-      return;
+  const handleDeleteRoom = (roomId) => {
+    setRooms((prev) => {
+      const updated = prev.filter((r) => r.id !== roomId);
+      localStorage.setItem('syncplay_rooms', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (socket.connected) {
+      socket.emit('delete_room', { roomId });
     }
-    // Extrai o UUID da URL caso o usuário tenha colado o link inteiro
-    let targetRoomId = joinRoomIdInput.trim();
-    if (targetRoomId.includes('/')) {
-      const parts = targetRoomId.split('/');
-      targetRoomId = parts[parts.length - 1];
+
+    if (activeRoom && activeRoom.id === roomId) {
+      setActiveRoom(null);
     }
-    
-    setDashboardError('');
-    setActiveRoomId(targetRoomId);
   };
 
-  const handleLeaveRoom = () => {
-    setActiveRoomId(null);
+  const handleOpenRoom = (roomId, title, url, videoTitle) => {
+    const existing = rooms.find((r) => r.id === roomId);
+    setActiveRoom({
+      id: roomId,
+      title: title || existing?.title || 'Noite de ficção científica',
+      videoTitle: videoTitle || existing?.videoTitle || 'Horizonte Neon',
+      url: url || existing?.url || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    });
   };
+
+  // Se não estiver logado, exibe a AuthScreen
+  if (!currentUser) {
+    return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // Se estiver dentro de uma sala de vídeo ativa
+  if (activeRoom) {
+    return (
+      <div className="min-h-screen bg-[#0b0d14] text-white">
+        <Room
+          roomId={activeRoom.id}
+          roomTitle={activeRoom.title}
+          defaultVideoTitle={activeRoom.videoTitle}
+          initialVideoUrl={activeRoom.url}
+          onLeave={() => setActiveRoom(null)}
+          user={currentUser}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gray-900 text-white font-sans selection:bg-purple-500/50">
-      {/* Header Fixo */}
-      <header className="w-full bg-gray-950/80 backdrop-blur-md border-b border-gray-800 p-4 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent cursor-pointer" onClick={() => setActiveRoomId(null)}>
-            SyncPlay
-          </h1>
-          <div className="flex items-center space-x-3 bg-gray-900 px-4 py-2 rounded-full border border-gray-800 shadow-inner">
-            <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]'}`}></div>
-            <span className="font-mono text-xs tracking-wider text-gray-300">
-              {isConnected ? 'ONLINE' : 'OFFLINE'}
-            </span>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#0b0d14] text-white flex">
+      {/* Figma Sidebar */}
+      <Sidebar
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
+        user={currentUser}
+        onLogout={handleLogout}
+        onOpenCreateRoom={() => setCurrentTab('criar_sala')}
+      />
 
       {/* Main Content Area */}
-      <main className="w-full max-w-7xl mx-auto flex-1 p-6 flex flex-col items-center justify-center">
-        {activeRoomId ? (
-          <div className="w-full animate-in fade-in slide-in-from-bottom-8 duration-700">
-             <Room roomId={activeRoomId} onLeave={handleLeaveRoom} />
+      <div className="flex-1 flex flex-col min-w-0">
+        
+        {/* Top Navbar */}
+        <header className="h-16 border-b border-[#1a1e30] bg-[#0d101a]/80 backdrop-blur-md px-8 flex items-center justify-between sticky top-0 z-20">
+          <div className="flex items-center space-x-3 text-xs text-[#94a3b8]">
+            <span className="font-semibold text-white">SyncPlay</span>
+            <span>/</span>
+            <span className="capitalize text-[#c084fc] font-medium">
+              {currentTab.replace('_', ' ')}
+            </span>
           </div>
-        ) : (
-          <div className="w-full max-w-4xl grid md:grid-cols-2 gap-8 animate-in fade-in zoom-in-95 duration-500">
-            
-            {/* Lado Esquerdo: Criar Sala */}
-            <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-2xl border border-gray-700/50 shadow-2xl relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-              <h2 className="text-3xl font-extrabold mb-2 text-white relative z-10">Criar Nova Sala</h2>
-              <p className="text-gray-400 mb-8 relative z-10">Seja o anfitrião e controle a reprodução para todos os seus amigos com latência zero.</p>
-              
-              <form onSubmit={handleCreateRoom} className="space-y-5 relative z-10">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">URL do Vídeo (Opcional)</label>
-                  <input 
-                    type="url" 
-                    value={videoUrlInput}
-                    onChange={(e) => setVideoUrlInput(e.target.value)}
-                    placeholder="https://youtube.com/watch?v=..."
-                    className="w-full bg-gray-900/80 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                  />
-                </div>
-                <button 
-                  type="submit" 
-                  disabled={!isConnected || isCreating}
-                  className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-lg shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_25px_rgba(147,51,234,0.5)] transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex justify-center items-center"
-                >
-                  {isCreating ? (
-                    <span className="flex items-center space-x-2">
-                       <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                       <span>Gerando...</span>
-                    </span>
-                  ) : 'Criar Sessão Premium'}
-                </button>
-              </form>
+
+          <div className="flex items-center space-x-4">
+            {/* Connection Status Badge */}
+            <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-[#131625] border border-[#1e2338]">
+              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-amber-400'}`}></span>
+              <span className="text-[11px] font-mono text-[#94a3b8] tracking-wider uppercase">
+                {isConnected ? 'ONLINE' : 'DESCONECTADO'}
+              </span>
             </div>
 
-            {/* Lado Direito: Entrar em Sala */}
-            <div className="bg-gray-800/30 backdrop-blur-sm p-8 rounded-2xl border border-gray-700/50 shadow-xl relative overflow-hidden group">
-               <div className="absolute inset-0 bg-gradient-to-bl from-pink-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-              <h2 className="text-3xl font-extrabold mb-2 text-white relative z-10">Entrar em Sessão</h2>
-              <p className="text-gray-400 mb-8 relative z-10">Possui um convite? Cole o ID da sala ou o link direto para assistir junto.</p>
-              
-              <form onSubmit={handleJoinRoom} className="space-y-5 relative z-10 flex flex-col h-[calc(100%-100px)] justify-end">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">ID da Sala ou Convite</label>
-                  <input 
-                    type="text" 
-                    value={joinRoomIdInput}
-                    onChange={(e) => setJoinRoomIdInput(e.target.value)}
-                    placeholder="Cole aqui..."
-                    required
-                    className="w-full bg-gray-900/80 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
-                  />
-                </div>
-                <button 
-                  type="submit"
-                  disabled={!isConnected}
-                  className="w-full bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                >
-                  Conectar como Espectador
-                </button>
-              </form>
-            </div>
+            {/* Quick Demo Switcher to Auth view */}
+            <button
+              onClick={() => setCurrentUser(null)}
+              className="text-[11px] font-medium text-[#64748b] hover:text-[#a855f7] px-2.5 py-1 rounded-lg border border-[#1e2338] hover:border-[#382b52] transition-colors cursor-pointer"
+              title="Alternar para tela de Login/Cadastro do Figma"
+            >
+              Ver Tela de Login
+            </button>
           </div>
-        )}
+        </header>
 
-        {/* Global Error Toast */}
-        {dashboardError && !activeRoomId && (
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-red-900/90 border border-red-500 text-red-100 px-6 py-3 rounded-lg shadow-2xl flex items-center space-x-3 animate-in fade-in slide-in-from-bottom-5">
-            <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <span className="font-medium">{dashboardError}</span>
-            <button onClick={() => setDashboardError('')} className="ml-4 hover:text-white">&times;</button>
-          </div>
-        )}
-      </main>
+        {/* Dynamic Page Views */}
+        <main className="flex-1 p-6 md:p-10 max-w-7xl w-full mx-auto">
+          {currentTab === 'inicio' && (
+            <DashboardView
+              user={currentUser}
+              onOpenCreateRoom={() => setCurrentTab('criar_sala')}
+              onOpenRoom={handleOpenRoom}
+              onNavigateTab={(tab) => setCurrentTab(tab)}
+            />
+          )}
+
+          {currentTab === 'minhas_salas' && (
+            <MinhasSalasView
+              rooms={rooms}
+              onDeleteRoom={handleDeleteRoom}
+              onOpenRoom={handleOpenRoom}
+              onOpenCreateRoom={() => setCurrentTab('criar_sala')}
+            />
+          )}
+
+          {currentTab === 'criar_sala' && (
+            <CriarSalaView
+              onCreateRoom={handleCreateRoom}
+              isCreating={isCreatingRoom}
+            />
+          )}
+
+          {currentTab === 'indicacoes' && (
+            <IndicacoesView user={currentUser} />
+          )}
+
+          {currentTab === 'perfil' && (
+            <PerfilPlanoView user={currentUser} />
+          )}
+        </main>
+
+      </div>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
