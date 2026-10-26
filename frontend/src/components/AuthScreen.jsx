@@ -32,6 +32,7 @@ export function AuthScreen({ onLoginSuccess }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
+            name: fullName.trim(),
             email, 
             password, 
             referred_by: referralCode ? referralCode.trim() : undefined 
@@ -57,14 +58,20 @@ export function AuthScreen({ onLoginSuccess }) {
     } catch (err) {
       console.warn('Fallback login para modo demonstração offline/demo se servidor não responder:', err);
       // Fallback gracioso para a experiência completa conforme o protótipo do Figma
+      const effectiveName = activeTab === 'register' && fullName ? fullName : (email === 'test@syncplay.com' ? 'Luna Martins' : email.split('@')[0]);
+      const nameParts = effectiveName.trim().split(/\s+/).filter(Boolean);
+      const effectiveInitials = nameParts.length > 1
+        ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+        : effectiveName.substring(0, 2).toUpperCase();
+
       onLoginSuccess({
-        id: 'user_luna_123',
-        name: activeTab === 'register' && fullName ? fullName : 'Luna Martins',
-        initials: 'LM',
+        id: 'user_' + Date.now(),
+        name: effectiveName,
+        initials: effectiveInitials,
         email: email || 'luna@syncplay.com',
         plan: 'Plano Vibe',
         daysLeft: 23,
-        referral_code: 'LUNA30',
+        referral_code: referralCode || 'LUNA30',
         sessionsCount: 12,
         referralsCount: 3
       }, 'demo_token');

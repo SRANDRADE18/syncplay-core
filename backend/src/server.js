@@ -53,10 +53,38 @@ const io = new Server(server, {
   }
 });
 
-// Dicionário em memória: { [roomId]: { hostSocketId, isPlaying, lastTimestamp, lastUpdated, hostTimeout } }
+// Dicionário em memória: { [roomId]: { hostSocketId, isPlaying, lastTimestamp, lastUpdated, hostTimeout, messages: [], participants: {} } }
 const roomsState = {};
 // Dicionário paralelo para O(1) lookup de qual sala o socket pertencia
 const socketRoomMap = {};
+
+// Paleta de cores moderna estilo Discord / SyncPlay para avatares
+const DISCORD_AVATAR_GRADIENTS = [
+  'bg-gradient-to-tr from-[#5865F2] to-[#7983F5]', // Blurple Discord
+  'bg-gradient-to-tr from-[#6366f1] to-[#a855f7]', // Roxo / Índigo
+  'bg-gradient-to-tr from-[#06b6d4] to-[#3b82f6]', // Ciano / Azul
+  'bg-gradient-to-tr from-[#ec4899] to-[#f43f5e]', // Rosa / Cereja
+  'bg-gradient-to-tr from-[#10b981] to-[#14b8a6]', // Esmeralda / Teal
+  'bg-gradient-to-tr from-[#f59e0b] to-[#ea580c]', // Âmbar / Laranja
+  'bg-gradient-to-tr from-[#8b5cf6] to-[#ec4899]', // Violeta / Magenta
+  'bg-gradient-to-tr from-[#3b82f6] to-[#1d4ed8]', // Azul Royal
+];
+
+function getUserColor(str = '') {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % DISCORD_AVATAR_GRADIENTS.length;
+  return DISCORD_AVATAR_GRADIENTS[index];
+}
+
+function getInitials(name = '') {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'U';
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 // MIDDLEWARE JWT (Stateless - Sem Banco de Dados)
 io.use((socket, next) => {
@@ -66,7 +94,10 @@ io.use((socket, next) => {
   }
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    socket.user = decoded; // { id, email, ... }
+    if (!decoded.name) {
+      decoded.name = decoded.email === 'test@syncplay.com' ? 'Luna Martins' : (decoded.email ? decoded.email.split('@')[0] : 'Usuário');
+    }
+    socket.user = decoded; // { id, email, name, ... }
     next();
   } catch (err) {
     return next(new Error('Authentication error: Invalid token'));
@@ -128,7 +159,9 @@ io.on('connection', (socket) => {
         lastUpdated: Date.now(),
         hostTimeout: null,
         videoUrl: finalVideoUrl,
-        roomName: finalRoomName
+        roomName: finalRoomName,
+        messages: [],
+        participants: {}
       };
 
       socket.join(roomId);
@@ -187,12 +220,16 @@ io.on('connection', (socket) => {
   socket.on('join_room', (data) => {
     const roomId = typeof data === 'string' ? data : data.roomId;
     const incomingToken = typeof data === 'string' ? null : data.hostToken;
+    const clientUser = typeof data === 'string' ? null : data.user;
 
     if (!roomsState[roomId]) {
       // Mitigação de DDoS: Falha instantânea se a sala não estiver na RAM
       socket.emit('join_rejected', { message: 'Sala não encontrada, já desativada ou ID inválido.' });
       return;
     }
+
+    if (!roomsState[roomId].messages) roomsState[roomId].messages = [];
+    if (!roomsState[roomId].participants) roomsState[roomId].participants = {};
 
     socket.join(roomId);
     socketRoomMap[socket.id] = roomId;
@@ -211,16 +248,57 @@ io.on('connection', (socket) => {
         roomsState[roomId].hostTimeout = null;
         console.log(`[Socket.io] Sala ${roomId} salva da destruição. Host verificado retornou.`);
       }
-    } else {
-      console.log(`[Socket.io] Socket ${socket.id} entrou na sala ${roomId} como Espectador`);
     }
 
+    // Identidade do usuário conectado
+    const effectiveName = clientUser?.name || socket.user?.name || (socket.user?.email ? (socket.user.email === 'test@syncplay.com' ? 'Luna Martins' : socket.user.email.split('@')[0]) : 'Usuário');
+    const effectiveInitials = clientUser?.initials || getInitials(effectiveName);
+    const effectiveColor = clientUser?.color || getUserColor(effectiveName);
+    const userId = clientUser?.id || socket.user?.id || socket.id;
+
+    // Registra participante ativo na sala
+    roomsState[roomId].participants[socket.id] = {
+      socketId: socket.id,
+      id: userId,
+      name: effectiveName,
+      initials: effectiveInitials,
+      color: effectiveColor,
+      isHost: assignedIsHost
+    };
+
+    console.log(`[Socket.io] ${effectiveName} (${socket.id}) conectado à sala ${roomId} como ${assignedIsHost ? 'Host' : 'Espectador'}`);
+
+    // Emite atribuição de papel ao usuário
     socket.emit('role_assigned', {
       isHost: assignedIsHost,
       hostToken: assignedToken,
       videoUrl: roomsState[roomId].videoUrl,
       roomName: roomsState[roomId].roomName || 'Sessão SyncPlay'
     });
+
+    // Envia histórico de chat da sala para quem acabou de entrar
+    socket.emit('chat_history', roomsState[roomId].messages || []);
+
+    // Atualiza lista de participantes online para todos na sala
+    const currentParticipants = Object.values(roomsState[roomId].participants);
+    io.to(roomId).emit('room_participants_update', {
+      participants: currentParticipants,
+      count: currentParticipants.length
+    });
+
+    // Mensagem de sistema padrão Discord para entrada de participante
+    const joinMsg = {
+      id: crypto.randomUUID(),
+      roomId,
+      isSystem: true,
+      systemType: 'join',
+      text: `${effectiveName} entrou na sala. Digam oi! 👋`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: Date.now()
+    };
+    roomsState[roomId].messages.push(joinMsg);
+    if (roomsState[roomId].messages.length > 200) roomsState[roomId].messages.shift();
+    io.to(roomId).emit('new_chat_message', joinMsg);
   });
 
   // 2. Motor de Sincronização: Intercepta a ação e faz o broadcast restrito à sala
@@ -267,24 +345,121 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 4. Chat em Tempo Real
+  // 4. Chat em Tempo Real estilo Discord
   socket.on('send_chat_message', (data) => {
-    const { roomId, text, user } = data;
-    if (!roomId || !text) return;
+    const { roomId, text, user, replyTo } = data || {};
+    if (!roomId || !text || !text.trim()) return;
+
+    const sender = roomsState[roomId]?.participants?.[socket.id];
+    const authorName = sender?.name || user?.name || socket.user?.name || (socket.user?.email ? socket.user.email.split('@')[0] : 'Usuário');
+    const initials = sender?.initials || user?.initials || getInitials(authorName);
+    const color = sender?.color || user?.color || getUserColor(authorName);
+    const isHost = roomsState[roomId]?.hostSocketId === socket.id;
+
     const msg = {
       id: crypto.randomUUID(),
       roomId,
-      user: user || { name: 'Luna Martins', initials: 'LM', color: 'from-purple-600 to-indigo-600' },
-      text,
+      user: {
+        id: socket.user?.id || sender?.id || socket.id,
+        name: authorName,
+        initials,
+        color,
+        isHost
+      },
+      text: text.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      reactions: []
+      timestamp: Date.now(),
+      reactions: [],
+      replyTo: replyTo || null
     };
+
+    if (roomsState[roomId]) {
+      if (!roomsState[roomId].messages) roomsState[roomId].messages = [];
+      roomsState[roomId].messages.push(msg);
+      if (roomsState[roomId].messages.length > 250) {
+        roomsState[roomId].messages.shift();
+      }
+    }
+
     io.to(roomId).emit('new_chat_message', msg);
   });
 
+  // 5. Reações de Mensagem (Toggle estilo Discord)
   socket.on('chat_reaction', (data) => {
-    const { roomId, messageId, emoji, count } = data;
-    io.to(roomId).emit('chat_reaction_update', { messageId, emoji, count });
+    const { roomId, messageId, emoji } = data || {};
+    if (!roomId || !messageId || !emoji) return;
+
+    const userId = socket.user?.id || socket.id;
+    const userName = socket.user?.name || 'Usuário';
+
+    if (roomsState[roomId]?.messages) {
+      const msg = roomsState[roomId].messages.find((m) => m.id === messageId);
+      if (msg) {
+        msg.reactions = msg.reactions || [];
+        const rIndex = msg.reactions.findIndex((r) => r.emoji === emoji);
+
+        if (rIndex === -1) {
+          msg.reactions.push({ emoji, count: 1, users: [userId], userNames: [userName] });
+        } else {
+          const r = msg.reactions[rIndex];
+          r.users = r.users || [];
+          r.userNames = r.userNames || [];
+
+          const uIdx = r.users.indexOf(userId);
+          if (uIdx !== -1) {
+            r.users.splice(uIdx, 1);
+            r.userNames.splice(uIdx, 1);
+            r.count = Math.max(0, r.count - 1);
+          } else {
+            r.users.push(userId);
+            r.userNames.push(userName);
+            r.count += 1;
+          }
+
+          if (r.count <= 0) {
+            msg.reactions.splice(rIndex, 1);
+          }
+        }
+
+        io.to(roomId).emit('chat_reaction_update', { messageId, reactions: msg.reactions });
+        return;
+      }
+    }
+
+    io.to(roomId).emit('chat_reaction_update', { messageId, emoji, userId });
+  });
+
+  // 6. Exclusão de Mensagem
+  socket.on('delete_chat_message', (data) => {
+    const { roomId, messageId } = data || {};
+    if (!roomId || !messageId) return;
+
+    if (roomsState[roomId]?.messages) {
+      const msgIndex = roomsState[roomId].messages.findIndex((m) => m.id === messageId);
+      if (msgIndex !== -1) {
+        const msg = roomsState[roomId].messages[msgIndex];
+        const isAuthor = msg.user?.id === (socket.user?.id || socket.id);
+        const isHost = roomsState[roomId].hostSocketId === socket.id;
+
+        if (isAuthor || isHost) {
+          roomsState[roomId].messages.splice(msgIndex, 1);
+          io.to(roomId).emit('chat_message_deleted', { messageId });
+        }
+      }
+    }
+  });
+
+  // 7. Indicador "digitando..." (Typing indicator)
+  socket.on('user_typing', (data) => {
+    const { roomId, isTyping } = data || {};
+    if (!roomId) return;
+    const sender = roomsState[roomId]?.participants?.[socket.id];
+    const name = sender?.name || socket.user?.name || 'Alguém';
+    socket.to(roomId).emit('user_typing_update', {
+      userId: socket.user?.id || socket.id,
+      name,
+      isTyping: !!isTyping
+    });
   });
 
   socket.on('disconnect', () => {
@@ -297,6 +472,33 @@ io.on('connection', (socket) => {
     if (!state) {
       delete socketRoomMap[socket.id];
       return;
+    }
+
+    // Remove participante da sala e avisa os demais
+    if (state.participants && state.participants[socket.id]) {
+      const leavingUser = state.participants[socket.id];
+      delete state.participants[socket.id];
+
+      const remaining = Object.values(state.participants);
+      io.to(roomId).emit('room_participants_update', {
+        participants: remaining,
+        count: remaining.length
+      });
+
+      const leaveMsg = {
+        id: crypto.randomUUID(),
+        roomId,
+        isSystem: true,
+        systemType: 'leave',
+        text: `${leavingUser.name} saiu da sala.`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: Date.now()
+      };
+      if (state.messages) {
+        state.messages.push(leaveMsg);
+        if (state.messages.length > 200) state.messages.shift();
+      }
+      io.to(roomId).emit('new_chat_message', leaveMsg);
     }
 
     // 1. Gestão de Queda do Anfitrião (Host Drop)
@@ -352,7 +554,7 @@ function getClientIp(req) {
 }
 
 app.post('/register', async (req, res) => {
-  const { email, password, referred_by } = req.body;
+  const { email, password, referred_by, name } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
@@ -361,20 +563,18 @@ app.post('/register', async (req, res) => {
   const ip = getClientIp(req);
 
   try {
-    // 1. Defesa L1: Verifica se o IP já registrou uma conta recentemente
-    // Como simplificação MVP, bloquearemos se o IP já existe na tabela User
-    // Em produção, isso seria filtrado por data (ex: 1 conta por IP por dia).
     const existingIp = await prisma.user.findFirst({
       where: { registration_ip: ip }
     });
-    if (existingIp && ip !== '::1' && ip !== '127.0.0.1') { // Ignora localhost para testes
+    if (existingIp && ip !== '::1' && ip !== '127.0.0.1') {
       return res.status(429).json({ error: 'Limite de criação de conta por IP atingido.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newReferralCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const displayName = (name && name.trim()) ? name.trim() : email.split('@')[0];
 
-    // 2. Transação Atômica do Growth Loop
+    // Transação Atômica do Growth Loop
     const result = await prisma.$transaction(async (tx) => {
       let referrerUser = null;
 
@@ -389,17 +589,16 @@ app.post('/register', async (req, res) => {
 
       const newUser = await tx.user.create({
         data: {
+          name: displayName,
           email,
           password: hashedPassword,
           referral_code: newReferralCode,
           registration_ip: ip,
-          // Bônus inicial nulo ou trial de 3 dias? Vamos deixar nulo por padrão.
           premium_until: null
         }
       });
 
       if (referrerUser) {
-        // Incrementa 30 dias de premium para quem indicou
         const currentPremium = referrerUser.premium_until && new Date(referrerUser.premium_until) > new Date()
           ? new Date(referrerUser.premium_until)
           : new Date();
@@ -410,7 +609,6 @@ app.post('/register', async (req, res) => {
           data: { premium_until: currentPremium }
         });
 
-        // Registra o evento de indicação
         await tx.referralEvent.create({
           data: {
             referrer_id: referrerUser.id,
@@ -424,7 +622,12 @@ app.post('/register', async (req, res) => {
 
     res.status(201).json({
       message: 'Usuário criado com sucesso.',
-      user: { id: result.id, email: result.email, referral_code: result.referral_code }
+      user: {
+        id: result.id,
+        name: result.name || displayName,
+        email: result.email,
+        referral_code: result.referral_code
+      }
     });
 
   } catch (error) {
@@ -456,8 +659,14 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
     }
 
+    const displayName = user.name || (user.email === 'test@syncplay.com' ? 'Luna Martins' : user.email.split('@')[0]);
+    const nameParts = displayName.trim().split(/\s+/).filter(Boolean);
+    const initials = nameParts.length > 1
+      ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+      : displayName.substring(0, 2).toUpperCase();
+
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: user.id, email: user.email, name: displayName },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
@@ -467,8 +676,8 @@ app.post('/login', async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        name: user.email === 'test@syncplay.com' ? 'Luna Martins' : user.email.split('@')[0],
-        initials: user.email === 'test@syncplay.com' ? 'LM' : user.email.substring(0, 2).toUpperCase(),
+        name: displayName,
+        initials,
         plan: 'Plano Vibe',
         daysLeft: 23,
         referral_code: user.referral_code || 'LUNA30',

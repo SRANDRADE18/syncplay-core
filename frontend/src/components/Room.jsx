@@ -8,6 +8,7 @@ import {
   Crown, Eye, Link2, Check, Sliders
 } from 'lucide-react';
 import { InviteModal } from './InviteModal';
+import { DiscordChat } from './DiscordChat';
 
 export function Room({ 
   roomId, 
@@ -44,54 +45,9 @@ export function Room({
   const [newUrlInput, setNewUrlInput] = useState('');
   const [urlCopied, setUrlCopied] = useState(false);
 
-  // Chat states
-  const [messages, setMessages] = useState([
-    {
-      id: 'sys-1',
-      isSystem: true,
-      text: '21:03 — Rafael entrou na sala'
-    },
-    {
-      id: 'msg-1',
-      user: { name: 'Rafael', initials: 'RA', color: 'bg-[#06b6d4]' },
-      time: '21:06',
-      text: 'Finalmente! Estava esperando a semana toda',
-      reactions: []
-    },
-    {
-      id: 'msg-2',
-      user: { name: 'Mari', initials: 'MA', color: 'bg-[#ec4899]' },
-      time: '21:07',
-      text: 'A fotografia desse filme é perfeita',
-      reactions: []
-    },
-    {
-      id: 'msg-3',
-      user: { name: 'Luna', initials: 'LM', color: 'bg-gradient-to-tr from-[#6366f1] to-[#a855f7]' },
-      time: '21:07',
-      text: 'Preparados? Vou dar play!',
-      isMine: true,
-      reactions: [
-        { emoji: '♥', count: 2, userReacted: true },
-        { emoji: 'Perfeito', count: 1, userReacted: false }
-      ]
-    }
-  ]);
-  const [chatInput, setChatInput] = useState('');
-  const [onlineCount, setOnlineCount] = useState(5);
-
+  const [participants, setParticipants] = useState([]);
   const playerRef = useRef(null);
   const playerContainerRef = useRef(null);
-  const chatBottomRef = useRef(null);
-
-  // Participants list matching Figma
-  const participants = [
-    { id: '1', initials: 'LM', name: 'Luna Martins', isHost: true, color: 'bg-gradient-to-tr from-[#6366f1] to-[#a855f7]' },
-    { id: '2', initials: 'RA', name: 'Rafael Alves', color: 'bg-[#06b6d4]' },
-    { id: '3', initials: 'MA', name: 'Mariana Costa', color: 'bg-[#ec4899]' },
-    { id: '4', initials: 'JP', name: 'João Pedro', color: 'bg-[#8b5cf6]' },
-    { id: '5', initials: 'BE', name: 'Beatriz', color: 'bg-[#3b82f6]' },
-  ];
 
   // Helper para formatar segundos em HH:MM:SS ou MM:SS
   const formatTime = (secs) => {
@@ -140,7 +96,16 @@ export function Room({
   // Gestão de papéis e sincronização de comandos
   useEffect(() => {
     const savedToken = sessionStorage.getItem(`hostToken_${roomId}`);
-    socket.emit('join_room', { roomId, hostToken: savedToken });
+    socket.emit('join_room', { 
+      roomId, 
+      hostToken: savedToken,
+      user: {
+        id: user?.id,
+        name: user?.name,
+        initials: user?.initials,
+        email: user?.email
+      }
+    });
 
     const handleRoleAssigned = (data) => {
       setIsHost(data.isHost);
@@ -193,35 +158,12 @@ export function Room({
     };
     socket.on('video_url_changed', handleVideoUrlChanged);
 
-    // Chat listeners
-    const handleNewMessage = (msg) => {
-      setMessages((prev) => [...prev, msg]);
+    const handleParticipantsUpdate = (data) => {
+      if (data?.participants) {
+        setParticipants(data.participants);
+      }
     };
-    socket.on('new_chat_message', handleNewMessage);
-
-    const handleReactionUpdate = (data) => {
-      setMessages((prev) =>
-        prev.map((m) => {
-          if (m.id === data.messageId) {
-            const existing = m.reactions?.find((r) => r.emoji === data.emoji);
-            if (existing) {
-              return {
-                ...m,
-                reactions: m.reactions.map((r) =>
-                  r.emoji === data.emoji ? { ...r, count: r.count + 1 } : r
-                )
-              };
-            }
-            return {
-              ...m,
-              reactions: [...(m.reactions || []), { emoji: data.emoji, count: 1, userReacted: true }]
-            };
-          }
-          return m;
-        })
-      );
-    };
-    socket.on('chat_reaction_update', handleReactionUpdate);
+    socket.on('room_participants_update', handleParticipantsUpdate);
 
     return () => {
       socket.off('role_assigned', handleRoleAssigned);
@@ -230,15 +172,9 @@ export function Room({
       socket.off('host_timeout_kick', handleHostTimeoutKick);
       socket.off('sync_command', handleSyncCommand);
       socket.off('video_url_changed', handleVideoUrlChanged);
-      socket.off('new_chat_message', handleNewMessage);
-      socket.off('chat_reaction_update', handleReactionUpdate);
+      socket.off('room_participants_update', handleParticipantsUpdate);
     };
-  }, [roomId, isHost]);
-
-  // Scroll chat to bottom on new message
-  useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [roomId, isHost, user]);
 
   // Handler para emitir eventos apenas se for o host
   const emitVideoCommand = (action, customTimestamp) => {
@@ -335,53 +271,7 @@ export function Room({
     setNewUrlInput('');
   };
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
 
-    const myMessage = {
-      id: `msg-${Date.now()}`,
-      roomId,
-      user: {
-        name: user?.name?.split(' ')[0] || 'Luna',
-        initials: user?.initials || 'LM',
-        color: 'bg-gradient-to-tr from-[#6366f1] to-[#a855f7]'
-      },
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      text: chatInput.trim(),
-      isMine: true,
-      reactions: []
-    };
-
-    setMessages((prev) => [...prev, myMessage]);
-    socket.emit('send_chat_message', myMessage);
-    setChatInput('');
-  };
-
-  const handleToggleReaction = (msgId, emoji) => {
-    socket.emit('chat_reaction', { roomId, messageId: msgId, emoji });
-    setMessages((prev) =>
-      prev.map((m) => {
-        if (m.id === msgId) {
-          const reactions = m.reactions || [];
-          const exists = reactions.find((r) => r.emoji === emoji);
-          if (exists) {
-            return {
-              ...m,
-              reactions: reactions.map((r) =>
-                r.emoji === emoji ? { ...r, count: r.count + 1, userReacted: true } : r
-              )
-            };
-          }
-          return {
-            ...m,
-            reactions: [...reactions, { emoji, count: 1, userReacted: true }]
-          };
-        }
-        return m;
-      })
-    );
-  };
 
   if (errorMsg) {
     return (
@@ -750,20 +640,30 @@ export function Room({
               </span>
               <h2 className="text-2xl font-extrabold text-white">{roomTitle || defaultVideoTitle}</h2>
               <p className="text-xs text-[#64748b] mt-1">
-                Fonte externa • Sala criada por Luna
+                Fonte externa • Sala criada por {isHost ? (user?.name || 'você') : 'Anfitrião'}
               </p>
             </div>
 
             {/* Watching count & Avatars */}
             <div className="flex items-center space-x-3">
               <div className="flex -space-x-2 overflow-hidden">
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#6366f1] text-[10px] font-bold text-white ring-2 ring-[#0b0d14]">LM</span>
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#06b6d4] text-[10px] font-bold text-white ring-2 ring-[#0b0d14]">RA</span>
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#ec4899] text-[10px] font-bold text-white ring-2 ring-[#0b0d14]">MA</span>
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#1e2338] text-[10px] font-bold text-[#94a3b8] ring-2 ring-[#0b0d14]">+2</span>
+                {(participants.length > 0 ? participants : [{ initials: user?.initials || 'U', color: 'bg-purple-600' }]).slice(0, 4).map((p, idx) => (
+                  <span
+                    key={p.socketId || p.id || idx}
+                    className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${p.color || 'bg-[#5865F2]'} text-[10px] font-bold text-white ring-2 ring-[#0b0d14]`}
+                    title={p.name}
+                  >
+                    {p.initials || 'U'}
+                  </span>
+                ))}
+                {participants.length > 4 && (
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#1e2338] text-[10px] font-bold text-[#94a3b8] ring-2 ring-[#0b0d14]">
+                    +{participants.length - 4}
+                  </span>
+                )}
               </div>
               <div className="text-xs">
-                <span className="text-white font-bold block">{onlineCount} assistindo</span>
+                <span className="text-white font-bold block">{participants.length || 1} assistindo</span>
                 <span className="text-emerald-400 font-medium text-[11px]">todos sincronizados</span>
               </div>
             </div>
@@ -784,119 +684,14 @@ export function Room({
 
         </div>
 
-        {/* Right Side: Chat & Online Participants */}
-        <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-[#1a1e30] bg-[#0d101a] flex flex-col h-full shrink-0">
-          
-          {/* Chat Header */}
-          <div className="p-4 border-b border-[#1a1e30] space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white">Chat da sala</h3>
-                <div className="flex items-center space-x-1.5 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  <span className="text-xs text-[#94a3b8]">{onlineCount} pessoas online</span>
-                </div>
-              </div>
-              <button className="p-1.5 text-[#64748b] hover:text-white rounded-lg transition-colors">
-                <MoreVertical className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Active Participants Strip */}
-            <div className="flex items-center space-x-2 pt-1 overflow-x-auto pb-1">
-              {participants.map((p) => (
-                <div key={p.id} className="relative group shrink-0" title={p.name}>
-                  <div className={`w-8 h-8 rounded-full ${p.color} flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-[#0d101a]`}>
-                    {p.initials}
-                  </div>
-                  {p.isHost && (
-                    <span className="absolute -bottom-1 -right-1 text-xs">👑</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Messages Feed */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-3.5">
-            {messages.map((msg) => {
-              if (msg.isSystem) {
-                return (
-                  <div key={msg.id} className="text-center py-1">
-                    <span className="text-[11px] text-[#64748b] bg-[#141828] px-3 py-1 rounded-full">
-                      {msg.text}
-                    </span>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={msg.id} className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-6 h-6 rounded-full ${msg.user?.color || 'bg-purple-600'} flex items-center justify-center text-[9px] font-bold text-white`}>
-                      {msg.user?.initials || 'U'}
-                    </div>
-                    <span className="text-xs font-semibold text-white">{msg.user?.name}</span>
-                    <span className="text-[10px] text-[#64748b]">{msg.time}</span>
-                  </div>
-
-                  <div className="ml-8 group relative inline-block">
-                    <div className="p-3 rounded-2xl bg-[#141829] border border-[#1e2338] text-xs text-white leading-relaxed max-w-xs break-words">
-                      {msg.text}
-                    </div>
-
-                    {/* Reactions pills */}
-                    {msg.reactions && msg.reactions.length > 0 && (
-                      <div className="flex gap-1.5 mt-1.5">
-                        {msg.reactions.map((r, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleToggleReaction(msg.id, r.emoji)}
-                            className="px-2 py-0.5 rounded-full bg-[#1b1f33] hover:bg-[#252b47] border border-[#2b3352] text-[10px] font-semibold text-[#c084fc] flex items-center space-x-1 cursor-pointer"
-                          >
-                            <span>{r.emoji}</span>
-                            <span>{r.count}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            <div ref={chatBottomRef}></div>
-          </div>
-
-          {/* Chat Input Bar */}
-          <form onSubmit={handleSendMessage} className="p-3 border-t border-[#1a1e30] flex items-center space-x-2 bg-[#0d101a]">
-            <div className="relative flex-1 flex items-center">
-              <button
-                type="button"
-                onClick={() => setChatInput((prev) => prev + ' 🍿')}
-                className="p-2 text-[#64748b] hover:text-white transition-colors cursor-pointer"
-                title="Inserir emoji"
-              >
-                <Smile className="w-5 h-5" />
-              </button>
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Escreva uma mensagem..."
-                className="w-full bg-[#141829] border border-[#1e2338] rounded-xl px-3 py-2.5 text-xs text-white placeholder-[#475569] focus:outline-none focus:border-[#a855f7] transition-all"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={!chatInput.trim()}
-              className="p-2.5 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6366f1] text-white hover:from-[#6d28d9] hover:to-[#4f46e5] disabled:opacity-30 transition-all cursor-pointer shadow-md shrink-0"
-              title="Enviar"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
-
-        </div>
+        {/* Right Side: Discord Chat */}
+        <DiscordChat
+          roomId={roomId}
+          roomTitle={roomTitle}
+          currentUser={user}
+          isHost={isHost}
+          onOpenInvite={() => setIsInviteOpen(true)}
+        />
 
       </div>
 
