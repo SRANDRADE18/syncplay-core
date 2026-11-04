@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit2, Trash2, ArrowRight, Clock, Users, Plus, AlertCircle, Play, Check } from 'lucide-react';
+import { Trash2, ArrowRight, Clock, Users, Plus, AlertCircle, Play, Check } from 'lucide-react';
 
 export function MinhasSalasView({ rooms, onDeleteRoom, onOpenRoom, onOpenCreateRoom }) {
   const [deletedToast, setDeletedToast] = useState('');

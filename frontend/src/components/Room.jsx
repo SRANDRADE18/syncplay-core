@@ -4,8 +4,7 @@ const ReactPlayer = _ReactPlayer.default || _ReactPlayer;
 import { socket } from '../services/socket';
 import { 
   ChevronLeft, Play, Pause, Volume2, VolumeX, Volume1, Maximize, 
-  Settings, UserPlus, Smile, Send, Sparkles, MoreVertical, 
-  Crown, Eye, Link2, Check, Sliders
+  UserPlus, Sparkles, Crown, Eye, Link2, Check, Sliders
 } from 'lucide-react';
 import { InviteModal } from './InviteModal';
 import { DiscordChat } from './DiscordChat';

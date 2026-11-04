@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link2, Shield, ArrowRight, Play, CheckCircle2, Sparkles } from 'lucide-react';
+import { Link2, Shield, ArrowRight, Play, CheckCircle2 } from 'lucide-react';
 
 export function CriarSalaView({ onCreateRoom, isCreating }) {
   const [roomName, setRoomName] = useState('Noite de ficção científica');

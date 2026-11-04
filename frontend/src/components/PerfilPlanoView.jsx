@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
-import { Shield, Lock, CreditCard, Check, ChevronRight, Calendar, CheckCircle2, User, Key } from 'lucide-react';
+import React from 'react';
+import { Lock, Check, ChevronRight, Calendar, CheckCircle2 } from 'lucide-react';
 
 export function PerfilPlanoView({ user }) {
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-
   return (
     <div className="max-w-4xl space-y-8 animate-in fade-in duration-300">
       

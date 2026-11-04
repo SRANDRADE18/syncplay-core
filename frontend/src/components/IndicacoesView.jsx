@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Calendar, Clock, Copy, Check, CheckCircle2, Gift, Share2 } from 'lucide-react';
+import { Users, Calendar, Clock, Copy, Check, CheckCircle2, Gift } from 'lucide-react';
 
 export function IndicacoesView({ user }) {
   const [copied, setCopied] = useState(false);

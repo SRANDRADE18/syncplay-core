@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { socket } from '../services/socket';
 import { 
   Hash, Smile, Send, Plus, X, Trash2, Crown, Users, 
-  Volume2, VolumeX, CornerDownRight, Flame, Film, Gift, 
-  Bell, BellOff, Check, Heart, Sparkles, AlertCircle
+  CornerDownRight, Film, Bell, BellOff
 } from 'lucide-react';
 
 const QUICK_REACTIONS = ['🍿', '❤️', '🔥', '😂', '🚀', '👏'];
@@ -46,7 +45,7 @@ export function DiscordChat({
   const audioContextRef = useRef(null);
 
   // Play Discord-style subtle notification blip
-  const playNotificationSound = () => {
+  const playNotificationSound = useCallback(() => {
     if (!soundEnabled) return;
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -69,10 +68,10 @@ export function DiscordChat({
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.12);
-    } catch (e) {
+    } catch {
       // Audio not permitted or suspended by browser
     }
-  };
+  }, [soundEnabled]);
 
   // Socket event listeners for chat
   useEffect(() => {
@@ -163,7 +162,7 @@ export function DiscordChat({
       socket.off('room_participants_update', handleParticipantsUpdate);
       socket.off('user_typing_update', handleTypingUpdate);
     };
-  }, [currentUser?.id, soundEnabled]);
+  }, [currentUser?.id, playNotificationSound]);
 
   // Scroll suave para a última mensagem
   useEffect(() => {

@@ -64,7 +64,7 @@ function App() {
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch (e) {
+      } catch {
         return null;
       }
     }
@@ -83,7 +83,6 @@ function App() {
   });
 
   const [currentTab, setCurrentTab] = useState('inicio');
-  const [activeRoom, setActiveRoom] = useState(null);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
 
   // Lista de salas persistida em localStorage
@@ -93,9 +92,25 @@ function App() {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {}
+      } catch {
+        // Ignora erro de parse e usa salas padrão
+      }
     }
     return DEFAULT_ROOMS;
+  });
+
+  const [activeRoom, setActiveRoom] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (!roomParam) return null;
+    const existing = rooms.find((r) => r.id === roomParam);
+    if (existing) return existing;
+    return {
+      id: roomParam,
+      title: 'Sessão Compartilhada',
+      videoTitle: 'Vídeo ao Vivo',
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    };
   });
 
   // Socket connection listeners
@@ -145,30 +160,13 @@ function App() {
     socket.on('room_created', onRoomCreated);
     socket.on('creation_rejected', onCreationRejected);
 
-    // Checa parâmetro de query na URL (?room=...)
-    const params = new URLSearchParams(window.location.search);
-    const roomParam = params.get('room');
-    if (roomParam) {
-      const existing = rooms.find((r) => r.id === roomParam);
-      if (existing) {
-        setActiveRoom(existing);
-      } else {
-        setActiveRoom({
-          id: roomParam,
-          title: 'Sessão Compartilhada',
-          videoTitle: 'Vídeo ao Vivo',
-          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-        });
-      }
-    }
-
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('room_created', onRoomCreated);
       socket.off('creation_rejected', onCreationRejected);
     };
-  }, [rooms]);
+  }, []);
 
   const handleLoginSuccess = (user, token) => {
     setCurrentUser(user);

@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 require('dotenv').config();
@@ -34,10 +35,11 @@ async function withRetry(fn, retries = 3, delayMs = 1000) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
 // Configuração do CORS para aceitar requisições do frontend
 app.use(cors({
-  origin: 'http://localhost:5173', // URL padrão do Vite
+  origin: CORS_ORIGIN,
   methods: ['GET', 'POST'],
 }));
 
@@ -48,7 +50,7 @@ const server = http.createServer(app);
 // Inicialização do Socket.io
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173',
+    origin: CORS_ORIGIN,
     methods: ['GET', 'POST'],
   }
 });
@@ -122,13 +124,14 @@ io.on('connection', (socket) => {
       futureDate.setMonth(futureDate.getMonth() + 1);
 
       if (!dbUser) {
+        const defaultHashedPassword = await bcrypt.hash('123456', 10);
         dbUser = await prisma.user.upsert({
           where: { id: socket.user.id },
           update: { premium_until: futureDate },
           create: {
             id: socket.user.id,
             email: socket.user.email || 'user@syncplay.com',
-            password: 'hashed_password_dummy',
+            password: defaultHashedPassword,
             premium_until: futureDate
           }
         });
@@ -546,8 +549,6 @@ io.on('connection', (socket) => {
 
 // --- ROTAS HTTP ---
 
-const bcrypt = require('bcryptjs');
-
 // Helper para obter o IP do cliente no Express
 function getClientIp(req) {
   return req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -561,13 +562,16 @@ app.post('/register', async (req, res) => {
   }
 
   const ip = getClientIp(req);
+  const enforceIpLimit = process.env.ENFORCE_IP_LIMIT === 'true';
 
   try {
-    const existingIp = await prisma.user.findFirst({
-      where: { registration_ip: ip }
-    });
-    if (existingIp && ip !== '::1' && ip !== '127.0.0.1') {
-      return res.status(429).json({ error: 'Limite de criação de conta por IP atingido.' });
+    if (enforceIpLimit) {
+      const existingIp = await prisma.user.findFirst({
+        where: { registration_ip: ip }
+      });
+      if (existingIp && ip !== '::1' && ip !== '127.0.0.1') {
+        return res.status(429).json({ error: 'Limite de criação de conta por IP atingido.' });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -654,8 +658,8 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'E-mail não cadastrado ou senha incorreta.' });
     }
 
-    const isValid = await bcrypt.compare(password, user.password).catch(() => false);
-    if (!isValid && user.password !== password) {
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
       return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
     }
 

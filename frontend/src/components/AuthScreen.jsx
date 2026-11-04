@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Play, Sparkles, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { API_URL } from '../services/socket';
 
 export function AuthScreen({ onLoginSuccess }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
@@ -18,17 +19,20 @@ export function AuthScreen({ onLoginSuccess }) {
 
     try {
       if (activeTab === 'login') {
-        const res = await fetch('http://localhost:3000/login', {
+        const res = await fetch(`${API_URL}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Falha ao autenticar.');
+        if (!res.ok) {
+          setErrorMessage(data.error || 'Falha ao autenticar.');
+          return;
+        }
 
         onLoginSuccess(data.user, data.token);
       } else {
-        const res = await fetch('http://localhost:3000/register', {
+        const res = await fetch(`${API_URL}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -39,10 +43,13 @@ export function AuthScreen({ onLoginSuccess }) {
           })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erro ao registrar.');
+        if (!res.ok) {
+          setErrorMessage(data.error || 'Erro ao registrar.');
+          return;
+        }
 
         // Login automático após registrar
-        const loginRes = await fetch('http://localhost:3000/login', {
+        const loginRes = await fetch(`${API_URL}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
