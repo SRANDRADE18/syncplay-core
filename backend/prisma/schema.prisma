@@ -23,6 +23,7 @@ model User {
   // Relacionamentos
   referralsMade       ReferralEvent[] @relation("Referrer")
   referralReceived    ReferralEvent?  @relation("ReferredUser")
+  rooms               Room[]          @relation("UserRooms")
 }
 
 model ReferralEvent {
@@ -37,9 +38,12 @@ model ReferralEvent {
 
 model Room {
   id        String   @id @default(uuid())
+  title     String   @default("Nova Sessão SyncPlay")
   host_id   String
   video_url String
   is_active Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  host      User     @relation("UserRooms", fields: [host_id], references: [id])
 }

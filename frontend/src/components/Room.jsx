@@ -15,9 +15,13 @@ export function Room({
   defaultVideoTitle = 'Horizonte Neon', 
   initialVideoUrl, 
   onLeave, 
-  user 
+  user,
+  initialIsHost = false
 }) {
-  const [isHost, setIsHost] = useState(false);
+  const [isHost, setIsHost] = useState(() => {
+    if (initialIsHost) return true;
+    return Boolean(sessionStorage.getItem(`hostToken_${roomId}`));
+  });
   const [errorMsg, setErrorMsg] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   
@@ -31,6 +35,7 @@ export function Room({
   const [isSeeking, setIsSeeking] = useState(false);
   const [useNativeControls, setUseNativeControls] = useState(false);
   const [isHoveringPlayer, setIsHoveringPlayer] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
   const [videoUrl, setVideoUrl] = useState(() => {
     if (initialVideoUrl && initialVideoUrl.trim()) {
@@ -164,6 +169,25 @@ export function Room({
     };
     socket.on('room_participants_update', handleParticipantsUpdate);
 
+    const handleSyncHeartbeat = (data) => {
+      if (isHost) return;
+      const player = playerRef.current;
+      if (!player || typeof player.getCurrentTime !== 'function') return;
+
+      if (data.timestamp !== undefined) {
+        const localTime = player.getCurrentTime();
+        const drift = Math.abs(localTime - data.timestamp);
+        if (drift > 1.5) {
+          player.seekTo(data.timestamp, 'seconds');
+        }
+      }
+
+      if (typeof data.isPlaying === 'boolean') {
+        setPlaying((prev) => (prev !== data.isPlaying ? data.isPlaying : prev));
+      }
+    };
+    socket.on('sync_heartbeat', handleSyncHeartbeat);
+
     return () => {
       socket.off('role_assigned', handleRoleAssigned);
       socket.off('creation_rejected', handleCreationRejected);
@@ -172,8 +196,27 @@ export function Room({
       socket.off('sync_command', handleSyncCommand);
       socket.off('video_url_changed', handleVideoUrlChanged);
       socket.off('room_participants_update', handleParticipantsUpdate);
+      socket.off('sync_heartbeat', handleSyncHeartbeat);
     };
   }, [roomId, isHost, user]);
+
+  // Emissão periódica de Heartbeat pelo anfitrião (a cada 5 segundos)
+  useEffect(() => {
+    if (!isHost || !playing) return;
+
+    const interval = setInterval(() => {
+      const player = playerRef.current;
+      if (!player || typeof player.getCurrentTime !== 'function') return;
+
+      socket.emit('video_heartbeat', {
+        roomId,
+        timestamp: player.getCurrentTime(),
+        isPlaying: true,
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isHost, playing, roomId]);
 
   // Handler para emitir eventos apenas se for o host
   const emitVideoCommand = (action, customTimestamp) => {
@@ -200,6 +243,28 @@ export function Room({
 
   const handleBuffer = () => {
     emitVideoCommand('buffer');
+  };
+
+  const handlePlayerError = (error) => {
+    console.warn('[SyncPlay Player Warning]', error);
+    if (!isHost) {
+      setAutoplayBlocked(true);
+    }
+  };
+
+  const handleDismissAutoplay = () => {
+    setAutoplayBlocked(false);
+    setPlaying(true);
+    const player = playerRef.current;
+    if (player && typeof player.getInternalPlayer === 'function') {
+      try {
+        const internal = player.getInternalPlayer();
+        if (internal && typeof internal.playVideo === 'function') internal.playVideo();
+        else if (internal && typeof internal.play === 'function') internal.play();
+      } catch (e) {
+        console.warn('Erro ao forçar play:', e);
+      }
+    }
   };
 
   const handleTogglePlay = () => {
@@ -431,6 +496,7 @@ export function Room({
                   onPlay={handlePlay}
                   onPause={handlePause}
                   onBuffer={handleBuffer}
+                  onError={handlePlayerError}
                   onProgress={(state) => {
                     if (!isSeeking) setPlayedSeconds(state.playedSeconds);
                   }}
@@ -484,6 +550,27 @@ export function Room({
               <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md border border-white/10 text-white text-xs px-3.5 py-1.5 rounded-full font-bold shadow-xl flex items-center space-x-2 pointer-events-none z-30">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]"></span>
                 <span>Modo Espectador</span>
+              </div>
+            )}
+
+            {/* Aviso e Desbloqueio de Autoplay (Políticas de navegadores modernos) */}
+            {autoplayBlocked && (
+              <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center space-y-4 animate-in fade-in duration-300">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shadow-lg">
+                  <VolumeX className="w-7 h-7" />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-white">Reprodução Automática Bloqueada</h4>
+                  <p className="text-xs text-[#94a3b8] max-w-sm mt-1">
+                    O navegador requer interação do usuário para reproduzir mídia com áudio. Clique abaixo para sincronizar com a sessão.
+                  </p>
+                </div>
+                <button
+                  onClick={handleDismissAutoplay}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6366f1] text-white text-xs font-bold hover:brightness-110 shadow-lg cursor-pointer transform hover:scale-105 transition-all"
+                >
+                  Sincronizar Áudio e Vídeo
+                </button>
               </div>
             )}
           </div>

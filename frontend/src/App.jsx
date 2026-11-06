@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { socket, updateSocketAuth } from './services/socket';
+import { socket, updateSocketAuth, API_URL } from './services/socket';
 import { Sidebar } from './components/Sidebar';
 import { AuthScreen } from './components/AuthScreen';
 import { DashboardView } from './components/DashboardView';
@@ -168,6 +168,29 @@ function App() {
     };
   }, []);
 
+  // Sincroniza lista de salas persistidas no PostgreSQL via API REST
+  useEffect(() => {
+    if (!currentUser) return;
+    const token = localStorage.getItem('syncplay_token');
+    if (!token) return;
+
+    fetch(`${API_URL}/rooms`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setRooms(data);
+          localStorage.setItem('syncplay_rooms', JSON.stringify(data));
+        }
+      })
+      .catch((err) => {
+        console.warn('Servidor offline ou sem salas salvas, mantendo cache local:', err);
+      });
+  }, [currentUser]);
+
   const handleLoginSuccess = (user, token) => {
     setCurrentUser(user);
     localStorage.setItem('syncplay_user', JSON.stringify(user));
@@ -192,8 +215,11 @@ function App() {
       // Fallback offline caso o servidor esteja desconectado
       setTimeout(() => {
         setIsCreatingRoom(false);
+        const fallbackId = `room-${Date.now()}`;
+        sessionStorage.setItem(`hostToken_${fallbackId}`, 'offline_host_token');
+
         const demoRoom = {
-          id: `room-${Date.now()}`,
+          id: fallbackId,
           title: cleanTitle,
           videoTitle: cleanTitle,
           type: cleanUrl.includes('youtube') ? 'YOUTUBE' : 'VÍDEO EXTERNO',
@@ -201,7 +227,8 @@ function App() {
           participants: 1,
           image: cleanUrl.includes('youtube') ? '/maratona.jpg' : '/horizonte_neon.jpg',
           isPrimary: true,
-          url: cleanUrl
+          url: cleanUrl,
+          isHost: true
         };
         setRooms((prev) => {
           const updated = [demoRoom, ...prev];
@@ -222,6 +249,18 @@ function App() {
       localStorage.setItem('syncplay_rooms', JSON.stringify(updated));
       return updated;
     });
+
+    const token = localStorage.getItem('syncplay_token');
+    if (token) {
+      fetch(`${API_URL}/rooms/${roomId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }).catch((err) => {
+        console.warn('Erro ao excluir sala no backend:', err);
+      });
+    }
 
     if (socket.connected) {
       socket.emit('delete_room', { roomId });
@@ -258,6 +297,7 @@ function App() {
           initialVideoUrl={activeRoom.url}
           onLeave={() => setActiveRoom(null)}
           user={currentUser}
+          initialIsHost={Boolean(activeRoom.isHost)}
         />
       </div>
     );
