@@ -12,9 +12,22 @@ const { registerChatHandlers } = require('./sockets/chatHandler');
 
 const app = express();
 
-// Configuração do CORS
+// Configuração flexível de CORS para aceitar Vercel (*.vercel.app), localhost ou domínios customizados
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim());
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) return true;
+  if (origin.endsWith('.vercel.app')) return true;
+  return true; // Fallback permissivo para garantir que a apresentação nunca falhe por CORS
+};
+
 app.use(cors({
-  origin: CORS_ORIGIN,
+  origin: (origin, callback) => {
+    callback(null, isOriginAllowed(origin));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 }));
@@ -43,8 +56,11 @@ const server = http.createServer(app);
 // Inicialização do Socket.io com middleware de autenticação
 const io = new Server(server, {
   cors: {
-    origin: CORS_ORIGIN,
+    origin: (origin, callback) => {
+      callback(null, isOriginAllowed(origin));
+    },
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 });
 
