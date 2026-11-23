@@ -193,8 +193,8 @@ export function DiscordChat({
       text: clean,
       user: {
         id: currentUser?.id,
-        name: currentUser?.name || 'Luna Martins',
-        initials: currentUser?.initials || 'LM',
+        name: currentUser?.name || 'Usuário',
+        initials: currentUser?.initials || (currentUser?.name ? currentUser.name.substring(0, 2).toUpperCase() : 'U'),
         color: currentUser?.color
       },
       replyTo: replyingTo

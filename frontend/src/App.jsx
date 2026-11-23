@@ -61,25 +61,15 @@ function App() {
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('syncplay_user');
-    if (saved) {
+    const token = localStorage.getItem('syncplay_token');
+    if (saved && token) {
       try {
         return JSON.parse(saved);
       } catch {
         return null;
       }
     }
-    // Usuário padrão do protótipo Figma
-    return {
-      id: 'b1c8508b-f98c-4b9d-89f4-3fc09973e176',
-      name: 'Luna Martins',
-      initials: 'LM',
-      email: 'test@syncplay.com',
-      plan: 'Plano Vibe',
-      daysLeft: 23,
-      referral_code: 'LUNA30',
-      sessionsCount: 12,
-      referralsCount: 3
-    };
+    return null;
   });
 
   const [currentTab, setCurrentTab] = useState('inicio');

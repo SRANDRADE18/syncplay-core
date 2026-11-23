@@ -4,9 +4,9 @@ import { API_URL } from '../services/socket';
 
 export function AuthScreen({ onLoginSuccess }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
-  const [email, setEmail] = useState('test@syncplay.com');
-  const [password, setPassword] = useState('123456');
-  const [fullName, setFullName] = useState('Luna Martins');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -295,6 +295,21 @@ export function AuthScreen({ onLoginSuccess }) {
                     <span>{activeTab === 'login' ? 'Entrar no SyncPlay' : 'Criar minha conta'}</span>
                   </>
                 )}
+              </button>
+
+              {/* Botão rápido para testar com a conta demo */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('login');
+                  setEmail('test@syncplay.com');
+                  setPassword('123456');
+                  setErrorMessage('');
+                }}
+                className="w-full mt-3 py-2.5 px-4 rounded-xl text-xs font-semibold text-[#c084fc] bg-[#1a152e] hover:bg-[#251e42] border border-[#a855f7]/30 transition-all flex items-center justify-center space-x-2 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#a855f7]" />
+                <span>Preencher conta de teste (Luna Martins)</span>
               </button>
             </form>
 

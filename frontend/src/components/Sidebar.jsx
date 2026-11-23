@@ -73,10 +73,10 @@ export function Sidebar({ currentTab, setCurrentTab, user, onLogout, onOpenCreat
       <div className="p-4 border-t border-[#1a1e30] space-y-3">
         <div className="flex items-center space-x-3 p-2 rounded-xl bg-[#131625] border border-[#1e2338]">
           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#6366f1] to-[#a855f7] flex items-center justify-center text-white font-bold text-sm shadow-md">
-            {user?.initials || 'LM'}
+            {user?.initials || (user?.name ? user.name.substring(0, 2).toUpperCase() : 'U')}
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-semibold text-white truncate">{user?.name || 'Luna Martins'}</h4>
+            <h4 className="text-sm font-semibold text-white truncate">{user?.name || 'Usuário'}</h4>
             <p className="text-xs text-[#a855f7] font-medium">{user?.plan || 'Plano Vibe'}</p>
           </div>
         </div>
