@@ -34,19 +34,22 @@ app.use(cors({
 
 app.use(express.json());
 
-// Rotas HTTP
-app.use('/', authRoutes); // Disponibiliza /register e /login diretamente na raiz
-app.use('/auth', authRoutes); // Disponibiliza /auth/register e /auth/login
-app.use('/rooms', roomRoutes); // Disponibiliza /rooms para CRUD de salas
+// Rotas HTTP - montadas sob /api (para o roteamento de serviços da Vercel) e na raiz (para retrocompatibilidade local)
+app.use('/api', authRoutes); // /api/login, /api/register
+app.use('/api/auth', authRoutes); // /api/auth/login, /api/auth/register
+app.use('/api/rooms', roomRoutes); // /api/rooms
+app.use('/', authRoutes); // /login, /register (compatibilidade)
+app.use('/auth', authRoutes); // /auth/login, /auth/register
+app.use('/rooms', roomRoutes); // /rooms (compatibilidade)
 
-app.get('/', (req, res) => {
+app.get(['/', '/api'], (req, res) => {
   res.json({
     status: 'online',
     service: 'SyncPlay Core API',
     version: '1.0.0',
     endpoints: {
-      auth: ['POST /login', 'POST /register'],
-      rooms: ['GET /rooms', 'POST /rooms', 'GET /rooms/:id', 'DELETE /rooms/:id'],
+      auth: ['POST /api/login', 'POST /api/register'],
+      rooms: ['GET /api/rooms', 'POST /api/rooms', 'GET /api/rooms/:id', 'DELETE /api/rooms/:id'],
     },
   });
 });
@@ -79,4 +82,6 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, server };
+module.exports = app;
+module.exports.app = app;
+module.exports.server = server;
