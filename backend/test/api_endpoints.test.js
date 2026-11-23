@@ -58,7 +58,7 @@ describe('Controllers & Middlewares HTTP', () => {
   });
 
   test('authenticateToken deve autorizar e anexar req.user quando o token for válido', () => {
-    const userPayload = { id: 'usr-1', email: 'teste@syncplay.com', name: 'Luna' };
+    const userPayload = { id: 'usr-1', email: 'teste@syncplay.com', name: 'UsuarioTeste' };
     const validToken = jwt.sign(userPayload, JWT_SECRET);
 
     const req = {

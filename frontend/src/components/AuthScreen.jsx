@@ -65,7 +65,7 @@ export function AuthScreen({ onLoginSuccess }) {
     } catch (err) {
       console.warn('Fallback login para modo demonstração offline/demo se servidor não responder:', err);
       // Fallback gracioso para a experiência completa conforme o protótipo do Figma
-      const effectiveName = activeTab === 'register' && fullName ? fullName : (email === 'test@syncplay.com' ? 'Luna Martins' : email.split('@')[0]);
+      const effectiveName = activeTab === 'register' && fullName ? fullName : (email ? email.split('@')[0] : 'Usuário');
       const nameParts = effectiveName.trim().split(/\s+/).filter(Boolean);
       const effectiveInitials = nameParts.length > 1
         ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
@@ -75,12 +75,12 @@ export function AuthScreen({ onLoginSuccess }) {
         id: 'user_' + Date.now(),
         name: effectiveName,
         initials: effectiveInitials,
-        email: email || 'luna@syncplay.com',
+        email: email || 'usuario@syncplay.com',
         plan: 'Plano Vibe',
         daysLeft: 23,
-        referral_code: referralCode || 'LUNA30',
-        sessionsCount: 12,
-        referralsCount: 3
+        referral_code: referralCode || 'SYNCPLAY',
+        sessionsCount: 0,
+        referralsCount: 0
       }, 'demo_token');
     } finally {
       setLoading(false);
@@ -275,7 +275,7 @@ export function AuthScreen({ onLoginSuccess }) {
                     type="text"
                     value={referralCode}
                     onChange={(e) => setReferralCode(e.target.value)}
-                    placeholder="Ex: LUNA30"
+                    placeholder="Ex: AMIGO30"
                     className="w-full bg-[#15192a] border border-[#232942] rounded-xl px-4 py-3 text-sm text-white placeholder-[#475569] focus:outline-none focus:border-[#a855f7] focus:ring-1 focus:ring-[#a855f7] transition-all"
                   />
                 </div>
@@ -295,21 +295,6 @@ export function AuthScreen({ onLoginSuccess }) {
                     <span>{activeTab === 'login' ? 'Entrar no SyncPlay' : 'Criar minha conta'}</span>
                   </>
                 )}
-              </button>
-
-              {/* Botão rápido para testar com a conta demo */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('login');
-                  setEmail('test@syncplay.com');
-                  setPassword('123456');
-                  setErrorMessage('');
-                }}
-                className="w-full mt-3 py-2.5 px-4 rounded-xl text-xs font-semibold text-[#c084fc] bg-[#1a152e] hover:bg-[#251e42] border border-[#a855f7]/30 transition-all flex items-center justify-center space-x-2 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-[#a855f7]" />
-                <span>Preencher conta de teste (Luna Martins)</span>
               </button>
             </form>
 

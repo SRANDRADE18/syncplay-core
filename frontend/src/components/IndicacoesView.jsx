@@ -4,7 +4,7 @@ import { Users, Calendar, Clock, Copy, Check, CheckCircle2, Gift } from 'lucide-
 export function IndicacoesView({ user }) {
   const [copied, setCopied] = useState(false);
 
-  const referralCode = user?.referral_code || 'LUNA30';
+  const referralCode = user?.referral_code || 'SYNCPLAY';
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(referralCode);

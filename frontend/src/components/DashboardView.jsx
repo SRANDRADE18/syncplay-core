@@ -5,7 +5,7 @@ export function DashboardView({ user, onOpenCreateRoom, onOpenRoom, onNavigateTa
   const [copiedCode, setCopiedCode] = useState(false);
 
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(user?.referral_code || 'LUNA30');
+    navigator.clipboard.writeText(user?.referral_code || 'SYNCPLAY');
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
   };
@@ -130,7 +130,7 @@ export function DashboardView({ user, onOpenCreateRoom, onOpenRoom, onNavigateTa
             <div className="mt-5 p-3 rounded-xl bg-[#0d0f1a] border border-dashed border-[#2d3552] flex items-center justify-between">
               <div>
                 <span className="text-[10px] uppercase tracking-wider text-[#64748b] font-bold block">Seu código</span>
-                <span className="font-mono text-lg font-bold text-white tracking-widest">{user?.referral_code || 'LUNA30'}</span>
+                <span className="font-mono text-lg font-bold text-white tracking-widest">{user?.referral_code || 'SYNCPLAY'}</span>
               </div>
               <button
                 onClick={handleCopyCode}

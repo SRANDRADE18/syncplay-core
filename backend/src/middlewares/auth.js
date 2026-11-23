@@ -33,9 +33,7 @@ function socketAuthMiddleware(socket, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     if (!decoded.name) {
-      decoded.name = decoded.email === 'test@syncplay.com'
-        ? 'Luna Martins'
-        : (decoded.email ? decoded.email.split('@')[0] : 'Usuário');
+      decoded.name = decoded.email ? decoded.email.split('@')[0] : 'Usuário';
     }
     socket.user = decoded; // { id, email, name, ... }
     next();

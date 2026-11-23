@@ -119,7 +119,7 @@ async function login(req, res) {
     }
 
     const displayName =
-      user.name || (user.email === 'test@syncplay.com' ? 'Luna Martins' : user.email.split('@')[0]);
+      user.name || (user.email ? user.email.split('@')[0] : 'Usuário');
     const initials = getInitials(displayName);
 
     const token = jwt.sign(
@@ -145,7 +145,7 @@ async function login(req, res) {
         initials,
         plan: 'Plano Vibe',
         daysLeft,
-        referral_code: user.referral_code || 'LUNA30',
+        referral_code: user.referral_code || 'SYNCPLAY',
         premium_until: user.premium_until,
       },
     });

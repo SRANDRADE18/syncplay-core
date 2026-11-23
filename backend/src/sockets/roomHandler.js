@@ -149,11 +149,7 @@ function registerRoomHandlers(io, socket) {
     const effectiveName =
       clientUser?.name ||
       socket.user?.name ||
-      (socket.user?.email
-        ? socket.user.email === 'test@syncplay.com'
-          ? 'Luna Martins'
-          : socket.user.email.split('@')[0]
-        : 'Usuário');
+      (socket.user?.email ? socket.user.email.split('@')[0] : 'Usuário');
     const effectiveInitials = clientUser?.initials || getInitials(effectiveName);
     const effectiveColor = clientUser?.color || getUserColor(effectiveName);
     const userId = clientUser?.id || socket.user?.id || socket.id;

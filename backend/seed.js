@@ -11,18 +11,18 @@ async function main() {
   const hashedPassword = await bcrypt.hash('123456', 10);
 
   const user = await prisma.user.upsert({
-    where: { email: 'test@syncplay.com' },
+    where: { email: 'admin@syncplay.com' },
     update: {
-      name: 'Luna Martins',
+      name: 'Admin SyncPlay',
       password: hashedPassword,
-      referral_code: 'LUNA30',
+      referral_code: 'SYNCPLAY',
       premium_until: futureDate
     },
     create: {
-      name: 'Luna Martins',
-      email: 'test@syncplay.com',
+      name: 'Admin SyncPlay',
+      email: 'admin@syncplay.com',
       password: hashedPassword,
-      referral_code: 'LUNA30',
+      referral_code: 'SYNCPLAY',
       premium_until: futureDate
     }
   });
