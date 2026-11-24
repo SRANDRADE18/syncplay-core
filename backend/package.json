@@ -4,6 +4,8 @@
   "description": "Backend for SyncPlay",
   "main": "src/server.js",
   "scripts": {
+    "postinstall": "prisma generate",
+    "db:push": "prisma db push",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "node --test"

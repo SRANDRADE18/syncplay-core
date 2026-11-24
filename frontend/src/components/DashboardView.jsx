@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Clock, Users, Gift, Copy, Check, Play, Shield, ArrowRight } from 'lucide-react';
 
-export function DashboardView({ user, onOpenCreateRoom, onOpenRoom, onNavigateTab }) {
+export function DashboardView({ user, roomsCount = 0, onOpenCreateRoom, onOpenRoom, onNavigateTab }) {
   const [copiedCode, setCopiedCode] = useState(false);
 
   const handleCopyCode = () => {
@@ -11,33 +11,33 @@ export function DashboardView({ user, onOpenCreateRoom, onOpenRoom, onNavigateTa
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
       
       {/* Active Subscription Hero Banner */}
-      <div className="relative rounded-3xl bg-gradient-to-r from-[#14172a] via-[#161a30] to-[#1a1733] border border-[#232945] p-8 md:p-10 overflow-hidden shadow-2xl">
+      <div className="relative rounded-3xl bg-gradient-to-r from-[#14172a] via-[#161a30] to-[#1a1733] border border-[#232945] p-5 sm:p-8 md:p-10 overflow-hidden shadow-2xl">
         {/* Ambient subtle glow background */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-purple-600/10 rounded-full blur-[90px] pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-64 sm:w-80 h-64 sm:h-80 bg-purple-600/10 rounded-full blur-[90px] pointer-events-none"></div>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
-          <div className="space-y-4 max-w-xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 md:gap-8 relative z-10">
+          <div className="space-y-3 sm:space-y-4 max-w-xl">
             {/* Subscription active badge */}
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#102422] border border-[#164e3f] text-emerald-400 text-xs font-semibold tracking-wider uppercase">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#102422] border border-[#164e3f] text-emerald-400 text-[11px] sm:text-xs font-semibold tracking-wider uppercase">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]"></span>
               <span>Assinatura Ativa</span>
             </div>
 
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
               Continue criando momentos juntos.
             </h2>
 
-            <p className="text-[#94a3b8] text-sm md:text-base">
+            <p className="text-[#94a3b8] text-xs sm:text-sm md:text-base">
               Seu plano Vibe está ativo por mais <strong className="text-white font-bold">{user?.daysLeft || 23} dias</strong>.
             </p>
 
-            <div className="pt-2">
+            <div className="pt-1 sm:pt-2">
               <button
                 onClick={onOpenCreateRoom}
-                className="inline-flex items-center space-x-2.5 px-6 py-3.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-[#7c3aed] to-[#6366f1] hover:from-[#6d28d9] hover:to-[#4f46e5] shadow-[0_0_25px_rgba(124,58,237,0.4)] hover:shadow-[0_0_35px_rgba(124,58,237,0.6)] transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2.5 px-6 py-3.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-[#7c3aed] to-[#6366f1] hover:from-[#6d28d9] hover:to-[#4f46e5] shadow-[0_0_25px_rgba(124,58,237,0.4)] hover:shadow-[0_0_35px_rgba(124,58,237,0.6)] transition-all transform active:scale-98 cursor-pointer"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
                 <span>Criar nova sala</span>
@@ -46,7 +46,7 @@ export function DashboardView({ user, onOpenCreateRoom, onOpenRoom, onNavigateTa
           </div>
 
           {/* Right Glowing Orbital Play graphic */}
-          <div className="relative flex items-center justify-center self-center md:self-auto shrink-0 w-44 h-44">
+          <div className="hidden sm:flex relative items-center justify-center self-center md:self-auto shrink-0 w-36 h-36 md:w-44 md:h-44">
             {/* Concentric rings */}
             <div className="absolute inset-0 rounded-full border border-purple-500/15 animate-[spin_20s_linear_infinite]"></div>
             <div className="absolute inset-3 rounded-full border border-dashed border-indigo-500/20"></div>
@@ -55,56 +55,56 @@ export function DashboardView({ user, onOpenCreateRoom, onOpenRoom, onNavigateTa
             {/* Central Glowing Play Button */}
             <div 
               onClick={onOpenCreateRoom}
-              className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#6366f1] to-[#a855f7] flex items-center justify-center cursor-pointer shadow-[0_0_35px_rgba(168,85,247,0.8)] hover:scale-105 transition-transform"
+              className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-tr from-[#6366f1] to-[#a855f7] flex items-center justify-center cursor-pointer shadow-[0_0_35px_rgba(168,85,247,0.8)] hover:scale-105 transition-transform"
             >
-              <Play className="w-8 h-8 text-white fill-white ml-1" />
+              <Play className="w-7 h-7 md:w-8 md:h-8 text-white fill-white ml-1" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Visão Geral Section */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         <div>
-          <h3 className="text-xl font-bold text-white">Visão geral</h3>
+          <h3 className="text-lg sm:text-xl font-bold text-white">Visão geral</h3>
           <p className="text-xs text-[#64748b]">Tudo certo por aqui.</p>
         </div>
 
         {/* 3 Metric Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-5">
           {/* Metric 1 */}
-          <div className="bg-[#111422] border border-[#1e2338] rounded-2xl p-5 flex items-start space-x-4 shadow-lg hover:border-[#2a314e] transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-[#201830] border border-[#3b2859] flex items-center justify-center text-[#c084fc] shrink-0">
+          <div className="bg-[#111422] border border-[#1e2338] rounded-2xl p-4 sm:p-5 flex items-start space-x-3.5 sm:space-x-4 shadow-lg hover:border-[#2a314e] transition-colors">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-[#201830] border border-[#3b2859] flex items-center justify-center text-[#c084fc] shrink-0">
               <Clock className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-[11px] font-bold text-[#64748b] tracking-wider uppercase">Dias restantes</div>
-              <div className="text-3xl font-extrabold text-white mt-0.5">{user?.daysLeft || 23}</div>
-              <div className="text-xs text-[#64748b] mt-1">Expira em 14 jun 2025</div>
+              <div className="text-[10px] sm:text-[11px] font-bold text-[#64748b] tracking-wider uppercase">Dias restantes</div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white mt-0.5">{user?.daysLeft || 23}</div>
+              <div className="text-xs text-[#64748b] mt-0.5">Plano Vibe ativo</div>
             </div>
           </div>
 
           {/* Metric 2 */}
-          <div className="bg-[#111422] border border-[#1e2338] rounded-2xl p-5 flex items-start space-x-4 shadow-lg hover:border-[#2a314e] transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-[#142338] border border-[#1e3c5f] flex items-center justify-center text-[#38bdf8] shrink-0">
+          <div className="bg-[#111422] border border-[#1e2338] rounded-2xl p-4 sm:p-5 flex items-start space-x-3.5 sm:space-x-4 shadow-lg hover:border-[#2a314e] transition-colors">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-[#142338] border border-[#1e3c5f] flex items-center justify-center text-[#38bdf8] shrink-0">
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-[11px] font-bold text-[#64748b] tracking-wider uppercase">Sessões criadas</div>
-              <div className="text-3xl font-extrabold text-white mt-0.5">{user?.sessionsCount || 12}</div>
-              <div className="text-xs text-[#64748b] mt-1">4 neste mês</div>
+              <div className="text-[10px] sm:text-[11px] font-bold text-[#64748b] tracking-wider uppercase">Salas disponíveis</div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white mt-0.5">{roomsCount || user?.sessionsCount || 0}</div>
+              <div className="text-xs text-[#64748b] mt-0.5">Prontas para assistir</div>
             </div>
           </div>
 
           {/* Metric 3 */}
-          <div className="bg-[#111422] border border-[#1e2338] rounded-2xl p-5 flex items-start space-x-4 shadow-lg hover:border-[#2a314e] transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-[#30162a] border border-[#59224b] flex items-center justify-center text-[#f472b6] shrink-0">
+          <div className="bg-[#111422] border border-[#1e2338] rounded-2xl p-4 sm:p-5 flex items-start space-x-3.5 sm:space-x-4 shadow-lg hover:border-[#2a314e] transition-colors">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-[#30162a] border border-[#59224b] flex items-center justify-center text-[#f472b6] shrink-0">
               <Gift className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-[11px] font-bold text-[#64748b] tracking-wider uppercase">Amigos indicados</div>
-              <div className="text-3xl font-extrabold text-white mt-0.5">{user?.referralsCount || 3}</div>
-              <div className="text-xs text-emerald-400 font-medium mt-1">+90 dias conquistados</div>
+              <div className="text-[10px] sm:text-[11px] font-bold text-[#64748b] tracking-wider uppercase">Amigos indicados</div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white mt-0.5">{user?.referralsCount ?? 0}</div>
+              <div className="text-xs text-emerald-400 font-medium mt-0.5">+30 dias por convite</div>
             </div>
           </div>
         </div>

@@ -20,8 +20,8 @@ export function InviteModal({ isOpen, onClose, roomId, roomTitle }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-[#111422] border border-[#232945] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-6">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+      <div className="bg-[#111422] border-t sm:border border-[#232945] rounded-t-3xl sm:rounded-3xl p-5 sm:p-8 max-w-md w-full shadow-2xl relative space-y-5 pb-safe">
         
         {/* Close Button */}
         <button

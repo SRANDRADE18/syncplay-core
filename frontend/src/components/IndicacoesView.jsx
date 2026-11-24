@@ -59,14 +59,14 @@ export function IndicacoesView({ user }) {
         </div>
 
         {/* Code Box */}
-        <div className="p-4 rounded-2xl bg-[#0d0f1a] border border-dashed border-[#343c5e] flex items-center space-x-4 self-start md:self-auto">
-          <div>
+        <div className="w-full md:w-auto p-4 rounded-2xl bg-[#0d0f1a] border border-dashed border-[#343c5e] flex items-center justify-between space-x-4">
+          <div className="min-w-0">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748b] block">Seu código</span>
-            <span className="font-mono text-xl font-extrabold text-white tracking-widest">{referralCode}</span>
+            <span className="font-mono text-lg sm:text-xl font-extrabold text-white tracking-widest truncate block">{referralCode}</span>
           </div>
           <button
             onClick={handleCopyCode}
-            className="p-3 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6366f1] text-white hover:from-[#6d28d9] hover:to-[#4f46e5] transition-all shadow-md cursor-pointer flex items-center space-x-1.5 text-xs font-semibold"
+            className="p-3 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#6366f1] text-white hover:from-[#6d28d9] hover:to-[#4f46e5] transition-all shadow-md cursor-pointer flex items-center space-x-1.5 text-xs font-semibold shrink-0"
           >
             {copied ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4 text-white" />}
             <span>{copied ? 'Copiado!' : 'Copiar'}</span>
@@ -124,10 +124,10 @@ export function IndicacoesView({ user }) {
           {referrals.map((ref) => (
             <div
               key={ref.id}
-              className="flex items-center justify-between p-4 rounded-xl bg-[#0d0f1a] border border-[#1a1f33] hover:border-[#2a314e] transition-colors"
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-[#0d0f1a] border border-[#1a1f33] hover:border-[#2a314e] transition-colors"
             >
               <div className="flex items-center space-x-3.5">
-                <div className={`w-10 h-10 rounded-full ${ref.color} flex items-center justify-center text-white font-bold text-xs shadow-md`}>
+                <div className={`w-10 h-10 rounded-full ${ref.color} flex items-center justify-center text-white font-bold text-xs shadow-md shrink-0`}>
                   {ref.initials}
                 </div>
                 <div>
@@ -136,7 +136,7 @@ export function IndicacoesView({ user }) {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center justify-between sm:justify-end space-x-4 pl-13 sm:pl-0">
                 <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#102422] border border-[#164e3f] text-emerald-400 text-xs font-semibold">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>{ref.status}</span>

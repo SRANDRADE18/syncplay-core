@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { socket } from '../services/socket';
+import { socket, API_URL } from '../services/socket';
 import { 
   Hash, Smile, Send, Plus, X, Trash2, Crown, Users, 
   CornerDownRight, Film, Bell, BellOff
@@ -26,6 +26,10 @@ export function DiscordChat({
   roomTitle = 'Sessão SyncPlay', 
   currentUser, 
   isHost,
+  externalMessages = [],
+  externalParticipants = [],
+  activeTab: controlledTab,
+  onTabChange,
   onOpenInvite
 }) {
   const [messages, setMessages] = useState([]);
@@ -33,9 +37,16 @@ export function DiscordChat({
   const [replyingTo, setReplyingTo] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifMenu, setShowGifMenu] = useState(false);
-  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'members'
+  const [internalTab, setInternalTab] = useState('chat'); // 'chat' | 'members'
+  const activeTab = controlledTab || internalTab;
+  const setActiveTab = (next) => {
+    setInternalTab(next);
+    if (onTabChange) onTabChange(next);
+  };
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [onlineParticipants, setOnlineParticipants] = useState([]);
+  const [socketParticipants, setSocketParticipants] = useState([]);
+  const onlineParticipants =
+    socketParticipants.length > 0 ? socketParticipants : externalParticipants;
   const [typingUsers, setTypingUsers] = useState({}); // { [userId]: userName }
   const [hoveredMessageId, setHoveredMessageId] = useState(null);
 
@@ -43,6 +54,7 @@ export function DiscordChat({
   const inputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const audioContextRef = useRef(null);
+  const prevMsgCountRef = useRef(0);
 
   // Play Discord-style subtle notification blip
   const playNotificationSound = useCallback(() => {
@@ -129,7 +141,7 @@ export function DiscordChat({
     // 5. Atualização de participantes online
     const handleParticipantsUpdate = (data) => {
       if (data?.participants) {
-        setOnlineParticipants(data.participants);
+        setSocketParticipants(data.participants);
       }
     };
 
@@ -164,29 +176,57 @@ export function DiscordChat({
     };
   }, [currentUser?.id, playNotificationSound]);
 
-  // Scroll suave para a última mensagem
+  // Sincroniza mensagens vindas do polling REST quando Socket.io não está ativo (Vercel Serverless / Mobile)
+  useEffect(() => {
+    if (!Array.isArray(externalMessages) || externalMessages.length === 0) return;
+    if (socket.connected) return;
+
+    setMessages((prev) => {
+      if (externalMessages.length > prevMsgCountRef.current && prevMsgCountRef.current > 0) {
+        const newest = externalMessages[externalMessages.length - 1];
+        if (newest && !newest.isSystem && newest.user?.id !== currentUser?.id) {
+          playNotificationSound();
+        }
+      }
+      prevMsgCountRef.current = externalMessages.length;
+      if (JSON.stringify(prev) === JSON.stringify(externalMessages)) return prev;
+      return externalMessages;
+    });
+  }, [externalMessages, currentUser?.id, playNotificationSound]);
+
+  // Scroll suave para a última mensagem (apenas quando houver nova mensagem)
+  const lastMsgId = messages[messages.length - 1]?.id;
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, typingUsers]);
+  }, [lastMsgId, typingUsers]);
 
   // Emite evento de digitação com debounce
   const handleInputChange = (e) => {
     const val = e.target.value;
     setInputText(val);
 
-    socket.emit('user_typing', { roomId, isTyping: val.length > 0 });
-
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('user_typing', { roomId, isTyping: false });
-    }, 2500);
+    if (socket.connected) {
+      socket.emit('user_typing', { roomId, isTyping: val.length > 0 });
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit('user_typing', { roomId, isTyping: false });
+      }, 2500);
+    }
   };
 
-  // Enviar mensagem
-  const handleSendMessage = (e) => {
+  // Enviar mensagem (Dual Engine: Socket.io + REST API para funcionar 100% no celular e na Vercel)
+  const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
     const clean = inputText.trim();
     if (!clean) return;
+
+    const replyData = replyingTo
+      ? {
+          id: replyingTo.id,
+          authorName: replyingTo.user?.name || 'Usuário',
+          text: replyingTo.text
+        }
+      : null;
 
     const payload = {
       roomId,
@@ -197,35 +237,105 @@ export function DiscordChat({
         initials: currentUser?.initials || (currentUser?.name ? currentUser.name.substring(0, 2).toUpperCase() : 'U'),
         color: currentUser?.color
       },
-      replyTo: replyingTo
-        ? {
-            id: replyingTo.id,
-            authorName: replyingTo.user?.name || 'Usuário',
-            text: replyingTo.text
-          }
-        : null
+      replyTo: replyData
     };
-
-    socket.emit('send_chat_message', payload);
-    socket.emit('user_typing', { roomId, isTyping: false });
 
     setInputText('');
     setReplyingTo(null);
     setShowEmojiPicker(false);
     setShowGifMenu(false);
-    inputRef.current?.focus();
-  };
 
-  // Toggle de reação
-  const handleToggleReaction = (messageId, emoji) => {
-    socket.emit('chat_reaction', { roomId, messageId, emoji });
-  };
-
-  // Excluir mensagem
-  const handleDeleteMessage = (messageId) => {
-    if (confirm('Deseja excluir esta mensagem?')) {
-      socket.emit('delete_chat_message', { roomId, messageId });
+    if (socket.connected) {
+      socket.emit('send_chat_message', payload);
+      socket.emit('user_typing', { roomId, isTyping: false });
+      return;
     }
+
+    // Envio via HTTP REST com atualização otimista imediata na tela
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticMsg = {
+      id: optimisticId,
+      roomId,
+      user: {
+        ...payload.user,
+        isHost,
+      },
+      text: clean,
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      timestamp: Date.now(),
+      reactions: [],
+      replyTo: replyData,
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    const token = localStorage.getItem('syncplay_token');
+    if (token && token !== 'demo_token') {
+      try {
+        const res = await fetch(`${API_URL}/rooms/${roomId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ text: clean, replyTo: replyData }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.message) {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === optimisticId ? data.message : m))
+            );
+            prevMsgCountRef.current += 1;
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao enviar mensagem via REST:', err);
+      }
+    }
+  };
+
+  // Toggle de reação (Socket.io ou REST)
+  const handleToggleReaction = async (messageId, emoji) => {
+    if (socket.connected) {
+      socket.emit('chat_reaction', { roomId, messageId, emoji });
+      return;
+    }
+    const token = localStorage.getItem('syncplay_token');
+    if (!token || token === 'demo_token') return;
+    try {
+      const res = await fetch(`${API_URL}/rooms/${roomId}/messages/${messageId}/react`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ emoji }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) =>
+          prev.map((m) => (m.id === messageId ? { ...m, reactions: data.reactions } : m))
+        );
+      }
+    } catch {
+      // ignora falha transitória
+    }
+  };
+
+  // Excluir mensagem (Socket.io ou REST)
+  const handleDeleteMessage = async (messageId) => {
+    if (!confirm('Deseja excluir esta mensagem?')) return;
+    if (socket.connected) {
+      socket.emit('delete_chat_message', { roomId, messageId });
+      return;
+    }
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    const token = localStorage.getItem('syncplay_token');
+    if (!token || token === 'demo_token') return;
+    fetch(`${API_URL}/rooms/${roomId}/messages/${messageId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
   };
 
   // Formatar texto com markdown básico e menções estilo Discord
@@ -261,10 +371,10 @@ export function DiscordChat({
       : null;
 
   return (
-    <div className="flex flex-col h-full bg-[#0d101a] border-t lg:border-t-0 lg:border-l border-[#1a1e30] w-full lg:w-96 shrink-0 select-none relative">
+    <div className="flex flex-col flex-1 h-full min-h-0 bg-[#0d101a] lg:border-l border-[#1a1e30] w-full lg:w-96 select-none relative">
       
-      {/* 1. Discord Channel Header */}
-      <div className="h-14 border-b border-[#1a1e30] px-4 flex items-center justify-between bg-[#0e111d] shrink-0">
+      {/* 1. Discord Channel Header (oculto no celular pois as abas já ficam acima) */}
+      <div className="hidden lg:flex h-14 border-b border-[#1a1e30] px-4 items-center justify-between bg-[#0e111d] shrink-0">
         <div className="flex items-center space-x-2.5 min-w-0">
           <div className="w-7 h-7 rounded-lg bg-[#181c2f] flex items-center justify-center text-[#80848e]">
             <Hash className="w-4 h-4 text-[#c084fc]" />
@@ -344,7 +454,7 @@ export function DiscordChat({
                         p.color || 'bg-gradient-to-tr from-[#6366f1] to-[#a855f7]'
                       } flex items-center justify-center text-xs font-bold text-white shadow`}
                     >
-                      {p.initials || 'LM'}
+                      {p.initials || 'U'}
                     </div>
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-[#0d101a]"></span>
                   </div>
@@ -463,6 +573,7 @@ export function DiscordChat({
                 key={msg.id || index}
                 onMouseEnter={() => setHoveredMessageId(msg.id)}
                 onMouseLeave={() => setHoveredMessageId(null)}
+                onClick={() => setHoveredMessageId((prev) => (prev === msg.id ? null : msg.id))}
                 className={`group relative rounded-xl px-2 py-1 transition-colors ${
                   isHovered ? 'bg-[#15192b]/70' : 'hover:bg-[#131626]/40'
                 } ${isSameUserAsPrev ? 'mt-0.5' : 'mt-2'}`}
@@ -700,10 +811,10 @@ export function DiscordChat({
         </div>
       )}
 
-      {/* 6. Discord Chat Input Bar */}
+      {/* 6. Discord Chat Input Bar (respeita safe area inferior no celular) */}
       <form
         onSubmit={handleSendMessage}
-        className="p-3 border-t border-[#1a1e30] bg-[#0c0e17] shrink-0"
+        className="p-2.5 sm:p-3 border-t border-[#1a1e30] bg-[#0c0e17] shrink-0 pb-safe"
       >
         <div className="relative flex items-center bg-[#131626] border border-[#232942] focus-within:border-[#5865F2] rounded-2xl px-2.5 py-1.5 transition-all shadow-inner">
           

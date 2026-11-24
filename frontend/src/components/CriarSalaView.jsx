@@ -1,17 +1,30 @@
 import React, { useState } from 'react';
-import { Link2, Shield, ArrowRight, Play, CheckCircle2 } from 'lucide-react';
+import { Link2, Shield, ArrowRight, Play, CheckCircle2, ClipboardPaste } from 'lucide-react';
 
 export function CriarSalaView({ onCreateRoom, isCreating }) {
-  const [roomName, setRoomName] = useState('Noite de ficção científica');
-  const [videoUrl, setVideoUrl] = useState('https://www.w3schools.com/html/mov_bbb.mp4');
+  const [roomName, setRoomName] = useState('Noite de cinema');
+  const [videoUrl, setVideoUrl] = useState('https://www.youtube.com/watch?v=jfKfPfyJRdk');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!roomName.trim()) return;
     onCreateRoom({
       title: roomName.trim(),
-      video_url: videoUrl.trim() || 'https://www.w3schools.com/html/mov_bbb.mp4'
+      video_url: videoUrl.trim() || 'https://www.youtube.com/watch?v=jfKfPfyJRdk'
     });
+  };
+
+  const handlePasteUrl = async () => {
+    try {
+      if (navigator.clipboard?.readText) {
+        const clip = await navigator.clipboard.readText();
+        if (clip && clip.trim()) {
+          setVideoUrl(clip.trim());
+        }
+      }
+    } catch {
+      // Permissão de clipboard não concedida pelo navegador
+    }
   };
 
   // Detect provider dynamically
@@ -63,8 +76,18 @@ export function CriarSalaView({ onCreateRoom, isCreating }) {
 
         {/* Link do conteúdo */}
         <div className="space-y-2">
-          <label className="text-sm font-bold text-white">Link do conteúdo</label>
-          <p className="text-xs text-[#94a3b8]">Cole o link do filme, série ou vídeo no serviço de sua escolha.</p>
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-sm font-bold text-white">Link do conteúdo</label>
+            <button
+              type="button"
+              onClick={handlePasteUrl}
+              className="inline-flex items-center space-x-1.5 text-xs font-semibold text-[#c084fc] bg-[#1a152e] hover:bg-[#241d40] border border-[#a855f7]/30 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+            >
+              <ClipboardPaste className="w-3.5 h-3.5" />
+              <span>Colar link</span>
+            </button>
+          </div>
+          <p className="text-xs text-[#94a3b8]">Cole o link do YouTube, Vimeo, Twitch ou arquivo MP4.</p>
           <div className="relative">
             <Link2 className="w-4 h-4 text-[#64748b] absolute left-4 top-1/2 -translate-y-1/2" />
             <input
@@ -72,32 +95,32 @@ export function CriarSalaView({ onCreateRoom, isCreating }) {
               required
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://servico-de-video.com/..."
+              placeholder="https://www.youtube.com/watch?v=..."
               className="w-full bg-[#111422] border border-[#1e2338] rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-[#475569] focus:outline-none focus:border-[#a855f7] focus:ring-1 focus:ring-[#a855f7] transition-all font-medium"
             />
           </div>
 
           {/* Quick presets for testing */}
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className="text-[11px] text-[#64748b]">Sugestões rápidas:</span>
+            <span className="text-[11px] text-[#64748b] w-full sm:w-auto">Sugestões rápidas:</span>
             <button
               type="button"
-              onClick={() => { setVideoUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ'); if (roomName === 'Noite de ficção científica') setRoomName('Sessão YouTube'); }}
-              className="text-[11px] px-2.5 py-1 rounded-lg bg-[#1a1f33] hover:bg-[#252b47] text-[#c084fc] font-semibold border border-[#2b3352] transition-colors cursor-pointer"
+              onClick={() => { setVideoUrl('https://www.youtube.com/watch?v=jfKfPfyJRdk'); setRoomName('Lofi Radio Ao Vivo'); }}
+              className="text-xs px-3 py-1.5 rounded-lg bg-[#1a1f33] hover:bg-[#252b47] text-[#38bdf8] font-semibold border border-[#2b3352] transition-colors cursor-pointer"
             >
-              YouTube Clip
+              Lofi Girl (YouTube)
             </button>
             <button
               type="button"
-              onClick={() => { setVideoUrl('https://www.youtube.com/watch?v=jfKfPfyJRdk'); if (roomName === 'Noite de ficção científica') setRoomName('Lofi Radio'); }}
-              className="text-[11px] px-2.5 py-1 rounded-lg bg-[#1a1f33] hover:bg-[#252b47] text-[#38bdf8] font-semibold border border-[#2b3352] transition-colors cursor-pointer"
+              onClick={() => { setVideoUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ'); setRoomName('Sessão Musical'); }}
+              className="text-xs px-3 py-1.5 rounded-lg bg-[#1a1f33] hover:bg-[#252b47] text-[#c084fc] font-semibold border border-[#2b3352] transition-colors cursor-pointer"
             >
-              Lofi Girl (Ao Vivo)
+              Clipe YouTube
             </button>
             <button
               type="button"
-              onClick={() => setVideoUrl('https://www.w3schools.com/html/mov_bbb.mp4')}
-              className="text-[11px] px-2.5 py-1 rounded-lg bg-[#1a1f33] hover:bg-[#252b47] text-[#94a3b8] hover:text-white border border-[#2b3352] transition-colors cursor-pointer"
+              onClick={() => { setVideoUrl('https://www.w3schools.com/html/mov_bbb.mp4'); setRoomName('Curta Animado MP4'); }}
+              className="text-xs px-3 py-1.5 rounded-lg bg-[#1a1f33] hover:bg-[#252b47] text-[#94a3b8] hover:text-white border border-[#2b3352] transition-colors cursor-pointer"
             >
               Vídeo MP4 Demo
             </button>
@@ -143,7 +166,7 @@ export function CriarSalaView({ onCreateRoom, isCreating }) {
           ) : (
             <>
               <ArrowRight className="w-4 h-4" />
-              <span>Continuar para convite</span>
+              <span>Criar sala e entrar agora</span>
             </>
           )}
         </button>

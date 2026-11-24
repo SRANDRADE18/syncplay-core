@@ -16,14 +16,14 @@ export function MinhasSalasView({ rooms, onDeleteRoom, onOpenRoom, onOpenCreateR
       
       {/* Toast Notification */}
       {deletedToast && (
-        <div className="fixed top-20 right-8 z-50 bg-[#161a2b] border border-emerald-500/40 text-emerald-300 text-xs font-semibold px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-2 animate-in slide-in-from-top-2">
-          <Check className="w-4 h-4 text-emerald-400" />
-          <span>{deletedToast}</span>
+        <div className="fixed top-16 inset-x-4 sm:inset-x-auto sm:top-20 sm:right-8 z-50 bg-[#161a2b] border border-emerald-500/40 text-emerald-300 text-xs font-semibold px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-2 animate-in slide-in-from-top-2">
+          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="truncate">{deletedToast}</span>
         </div>
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Minhas salas</h2>
           <p className="text-xs md:text-sm text-[#94a3b8] mt-1">
@@ -33,7 +33,7 @@ export function MinhasSalasView({ rooms, onDeleteRoom, onOpenRoom, onOpenCreateR
 
         <button
           onClick={onOpenCreateRoom}
-          className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm text-white bg-gradient-to-r from-[#7c3aed] to-[#6366f1] hover:from-[#6d28d9] hover:to-[#4f46e5] shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all transform hover:-translate-y-0.5 cursor-pointer self-start sm:self-auto"
+          className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-5 py-3 sm:py-2.5 rounded-xl font-bold text-xs md:text-sm text-white bg-gradient-to-r from-[#7c3aed] to-[#6366f1] hover:from-[#6d28d9] hover:to-[#4f46e5] shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all active:scale-98 cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
           <span>Nova sala</span>

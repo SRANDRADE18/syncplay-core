@@ -1,16 +1,45 @@
 import React from 'react';
-import { Lock, Check, ChevronRight, Calendar, CheckCircle2 } from 'lucide-react';
+import { Lock, Check, ChevronRight, Calendar, CheckCircle2, LogOut, Mail } from 'lucide-react';
 
-export function PerfilPlanoView({ user }) {
+export function PerfilPlanoView({ user, onLogout }) {
+  const userInitials =
+    user?.initials || (user?.name ? user.name.substring(0, 2).toUpperCase() : 'U');
+
   return (
-    <div className="max-w-4xl space-y-8 animate-in fade-in duration-300">
+    <div className="max-w-4xl space-y-6 md:space-y-8 animate-in fade-in duration-300">
       
       {/* Header */}
       <div>
         <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Perfil e plano</h2>
         <p className="text-xs md:text-sm text-[#94a3b8] mt-1">
-          Gerencie sua assinatura, segurança da conta e histórico de pagamentos.
+          Gerencie sua conta, assinatura e segurança.
         </p>
+      </div>
+
+      {/* User Account Summary Card (Especialmente útil no celular) */}
+      <div className="bg-[#111422] border border-[#1e2338] rounded-2xl p-5 sm:p-6 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center space-x-4 min-w-0">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-[#6366f1] to-[#a855f7] flex items-center justify-center text-white font-extrabold text-base sm:text-lg shadow-lg shrink-0">
+            {userInitials}
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-lg font-bold text-white truncate">{user?.name || 'Usuário'}</h3>
+            <p className="text-xs text-[#94a3b8] flex items-center space-x-1.5 truncate mt-0.5">
+              <Mail className="w-3.5 h-3.5 text-[#64748b] shrink-0" />
+              <span className="truncate">{user?.email || 'Conta ativa'}</span>
+            </p>
+          </div>
+        </div>
+
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 text-xs font-bold text-rose-400 transition-colors cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sair da conta</span>
+          </button>
+        )}
       </div>
 
       {/* Main Plan Card & Features */}
@@ -121,9 +150,9 @@ export function PerfilPlanoView({ user }) {
           </button>
         </div>
 
-        <div className="p-4 rounded-xl bg-[#0d0f1a] border border-[#1a1f33] flex items-center justify-between">
+        <div className="p-4 rounded-xl bg-[#0d0f1a] border border-[#1a1f33] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center space-x-3.5">
-            <div className="w-10 h-10 rounded-xl bg-[#1a1f33] flex items-center justify-center text-[#94a3b8]">
+            <div className="w-10 h-10 rounded-xl bg-[#1a1f33] flex items-center justify-center text-[#94a3b8] shrink-0">
               <Calendar className="w-5 h-5" />
             </div>
             <div>
@@ -132,7 +161,7 @@ export function PerfilPlanoView({ user }) {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center justify-between sm:justify-end space-x-4 pl-13 sm:pl-0">
             <span className="text-sm font-bold text-white">R$ 14,90</span>
             <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#102422] border border-[#164e3f] text-emerald-400 text-xs font-semibold">
               <CheckCircle2 className="w-3.5 h-3.5" />

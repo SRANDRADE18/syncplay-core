@@ -7,8 +7,13 @@ const { authenticateToken } = require('../middlewares/auth');
 router.use(authenticateToken);
 
 router.get('/', roomController.listRooms);
-router.get('/:id', roomController.getRoomById);
 router.post('/', roomController.createRoom);
+router.get('/:id', roomController.getRoomById);
+router.post('/:id/sync', roomController.syncRoomState);
+router.post('/:id/messages', roomController.postRoomMessage);
+router.post('/:id/messages/:messageId/react', roomController.toggleMessageReaction);
+router.delete('/:id/messages/:messageId', roomController.deleteRoomMessage);
+router.post('/:id/leave', roomController.leaveRoom);
 router.delete('/:id', roomController.deleteRoom);
 
 module.exports = router;

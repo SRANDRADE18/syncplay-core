@@ -38,13 +38,19 @@ model ReferralEvent {
 }
 
 model Room {
-  id        String   @id @default(uuid())
-  title     String   @default("Nova Sessão SyncPlay")
-  host_id   String
-  video_url String
-  is_active Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(uuid())
+  title            String   @default("Nova Sessão SyncPlay")
+  host_id          String
+  video_url        String
+  is_active        Boolean  @default(true)
+  is_playing       Boolean  @default(false)
+  playback_time    Float    @default(0)
+  playback_rate    Float    @default(1.0)
+  state_updated_at DateTime @default(now())
+  messages         Json     @default("[]")
+  participants     Json     @default("{}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  host      User     @relation("UserRooms", fields: [host_id], references: [id])
+  host             User     @relation("UserRooms", fields: [host_id], references: [id])
 }

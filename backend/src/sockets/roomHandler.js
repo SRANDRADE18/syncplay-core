@@ -111,11 +111,38 @@ function registerRoomHandlers(io, socket) {
     );
   });
 
-  // 4. Ingresso em Sala (Zero I/O no banco, leitura de RAM)
-  socket.on('join_room', (data) => {
+  // 4. Ingresso em Sala (com hidratação automática do PostgreSQL se não estiver na RAM)
+  socket.on('join_room', async (data) => {
     const roomId = typeof data === 'string' ? data : data.roomId;
     const incomingToken = typeof data === 'string' ? null : data.hostToken;
     const clientUser = typeof data === 'string' ? null : data.user;
+
+    if (!roomsState[roomId]) {
+      try {
+        const dbRoom = await prisma.room.findFirst({
+          where: { id: roomId, is_active: true },
+        });
+        if (dbRoom) {
+          roomsState[roomId] = {
+            hostUserId: dbRoom.host_id,
+            hostSocketId: null,
+            hostToken: crypto.randomUUID(),
+            isPlaying: Boolean(dbRoom.is_playing),
+            lastTimestamp: Number(dbRoom.playback_time || 0),
+            lastUpdated: dbRoom.state_updated_at
+              ? new Date(dbRoom.state_updated_at).getTime()
+              : Date.now(),
+            hostTimeout: null,
+            videoUrl: dbRoom.video_url,
+            roomName: dbRoom.title,
+            messages: Array.isArray(dbRoom.messages) ? [...dbRoom.messages] : [],
+            participants: {},
+          };
+        }
+      } catch (err) {
+        console.warn('[Socket.io] Falha ao hidratar sala do PostgreSQL:', err.message);
+      }
+    }
 
     if (!roomsState[roomId]) {
       socket.emit('join_rejected', {
@@ -133,10 +160,13 @@ function registerRoomHandlers(io, socket) {
     let assignedIsHost = false;
     let assignedToken = null;
 
-    if (incomingToken && incomingToken === roomsState[roomId].hostToken) {
+    const isDbHost =
+      roomsState[roomId].hostUserId && socket.user?.id === roomsState[roomId].hostUserId;
+
+    if ((incomingToken && incomingToken === roomsState[roomId].hostToken) || isDbHost) {
       roomsState[roomId].hostSocketId = socket.id;
       assignedIsHost = true;
-      assignedToken = incomingToken;
+      assignedToken = roomsState[roomId].hostToken;
 
       if (roomsState[roomId].hostTimeout) {
         clearTimeout(roomsState[roomId].hostTimeout);

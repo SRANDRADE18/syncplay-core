@@ -88,16 +88,31 @@ export function AuthScreen({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0b0d14] flex items-center justify-center p-4 md:p-8 relative overflow-hidden">
+    <div className="min-h-[100dvh] w-full bg-[#0b0d14] flex items-center justify-center px-4 py-6 sm:p-8 relative overflow-x-hidden">
       {/* Background ambient lighting effects */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-purple-600/15 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute -top-40 -left-40 w-80 sm:w-96 h-80 sm:h-96 bg-purple-600/15 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute -bottom-40 -right-40 w-80 sm:w-96 h-80 sm:h-96 bg-indigo-600/15 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div className="w-full max-w-6xl grid lg:grid-cols-12 gap-8 items-center z-10">
+      <div className="w-full max-w-6xl grid lg:grid-cols-12 gap-6 lg:gap-8 items-center z-10">
         
-        {/* Left Side: Brand Showcase & Value Proposition */}
-        <div className="lg:col-span-7 flex flex-col justify-center space-y-8 pr-0 lg:pr-8">
-          <div>
+        {/* Mobile Compact Brand Header (visível apenas no celular para não empurrar o login para baixo) */}
+        <div className="lg:hidden flex flex-col items-center text-center space-y-2 pt-1">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#6366f1] to-[#a855f7] flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.55)]">
+              <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+            </div>
+            <span className="text-2xl font-extrabold tracking-tight text-white">
+              Sync<span className="text-[#a855f7]">Play</span>
+            </span>
+          </div>
+          <p className="text-xs text-[#94a3b8] max-w-xs">
+            Assista vídeos sincronizados e converse ao vivo com quem importa, direto do celular ou PC.
+          </p>
+        </div>
+
+        {/* Left Side: Brand Showcase & Value Proposition (Desktop & Rodapé compacto no Mobile) */}
+        <div className="order-2 lg:order-1 lg:col-span-7 flex flex-col justify-center space-y-6 lg:space-y-8 pr-0 lg:pr-8">
+          <div className="hidden lg:block">
             {/* Logo */}
             <div className="flex items-center space-x-3 mb-6">
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#6366f1] to-[#a855f7] flex items-center justify-center shadow-[0_0_25px_rgba(168,85,247,0.6)]">
@@ -129,12 +144,12 @@ export function AuthScreen({ onLoginSuccess }) {
           </div>
 
           {/* Social Proof Avatars */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center justify-center lg:justify-start space-x-4">
             <div className="flex -space-x-2 overflow-hidden">
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-[#6366f1] text-xs font-bold text-white ring-2 ring-[#0b0d14]">L</span>
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-[#06b6d4] text-xs font-bold text-white ring-2 ring-[#0b0d14]">R</span>
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-[#ec4899] text-xs font-bold text-white ring-2 ring-[#0b0d14]">M</span>
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-[#1e2338] text-xs font-bold text-[#94a3b8] ring-2 ring-[#0b0d14]">+2</span>
+              <span className="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#6366f1] text-xs font-bold text-white ring-2 ring-[#0b0d14]">L</span>
+              <span className="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#06b6d4] text-xs font-bold text-white ring-2 ring-[#0b0d14]">R</span>
+              <span className="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#ec4899] text-xs font-bold text-white ring-2 ring-[#0b0d14]">M</span>
+              <span className="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#1e2338] text-xs font-bold text-[#94a3b8] ring-2 ring-[#0b0d14]">+2</span>
             </div>
             <div>
               <div className="text-sm font-bold text-white">12 mil+</div>
@@ -143,11 +158,11 @@ export function AuthScreen({ onLoginSuccess }) {
           </div>
 
           {/* Featured Live Preview Card */}
-          <div className="relative rounded-2xl overflow-hidden border border-[#1e2338] shadow-2xl max-w-md group cursor-pointer transition-all duration-300 hover:border-[#333b5c]">
+          <div className="hidden sm:block relative rounded-2xl overflow-hidden border border-[#1e2338] shadow-2xl max-w-md mx-auto lg:mx-0 w-full group cursor-pointer transition-all duration-300 hover:border-[#333b5c]">
             <img 
               src="/horizonte_neon.jpg" 
               alt="Horizonte Neon" 
-              className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-700" 
+              className="w-full h-36 sm:h-44 object-cover group-hover:scale-105 transition-transform duration-700" 
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0b0d14]/90 via-[#0b0d14]/40 to-transparent flex flex-col justify-end p-4">
               <div className="flex items-center space-x-2 mb-1">
@@ -159,9 +174,9 @@ export function AuthScreen({ onLoginSuccess }) {
           </div>
         </div>
 
-        {/* Right Side: Authentication Box */}
-        <div className="lg:col-span-5 w-full">
-          <div className="bg-[#101320] border border-[#1e2338] rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+        {/* Right Side: Authentication Box (Primeiro no celular!) */}
+        <div className="order-1 lg:order-2 lg:col-span-5 w-full">
+          <div className="bg-[#101320] border border-[#1e2338] rounded-3xl p-5 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
             
             {/* Sub-header */}
             <div className="mb-6">
